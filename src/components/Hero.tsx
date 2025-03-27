@@ -43,7 +43,7 @@ const Hero = () => {
               </Link>
             </Button>
             <Button variant="outline" size="lg" className="rounded-full px-8 py-6">
-              <Link to="/">
+              <Link to="/guide">
                 Learn More
               </Link>
             </Button>

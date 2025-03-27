@@ -18,7 +18,7 @@ const Header = ({ transparent = false, className }: HeaderProps) => {
       )}
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <Link to="/" className="flex items-center space-x-2">
+        <Link to="/annotation" className="flex items-center space-x-2">
           <span className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-white font-bold">
             M
           </span>
@@ -26,11 +26,11 @@ const Header = ({ transparent = false, className }: HeaderProps) => {
         </Link>
         
         <nav className="hidden md:flex items-center space-x-8">
-          <Link to="/" className="text-sm font-medium hover:text-primary transition-colors">
-            Home
-          </Link>
           <Link to="/annotation" className="text-sm font-medium hover:text-primary transition-colors">
             Annotation Tool
+          </Link>
+          <Link to="/guide" className="text-sm font-medium hover:text-primary transition-colors">
+            Workflow Guide
           </Link>
         </nav>
       </div>

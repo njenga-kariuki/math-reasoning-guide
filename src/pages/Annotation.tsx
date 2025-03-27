@@ -1,15 +1,17 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import ProblemCard from '@/components/ProblemCard';
 import SolutionSteps from '@/components/SolutionSteps';
 import ErrorSelection from '@/components/ErrorSelection';
 import GuidanceForm from '@/components/GuidanceForm';
 import AnimatedPanel from '@/components/AnimatedPanel';
+import WalkthroughTooltip from '@/components/WalkthroughTooltip';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/use-toast';
+import { HelpCircle } from 'lucide-react';
 
 // Sample data for demonstration
 const sampleProblem = {
@@ -41,6 +43,34 @@ const sampleRevisedSteps = [
   "Step 9: Therefore, the particular solution is y = e^(-2x)."
 ];
 
+const walkthroughSteps = [
+  {
+    target: ".problem-card",
+    content: "Start by reviewing the problem. Understand what's being asked and the context of the problem.",
+    position: "bottom"
+  },
+  {
+    target: ".solution-steps",
+    content: "Review the AI's solution steps carefully, searching for the first error in the reasoning process.",
+    position: "right"
+  },
+  {
+    target: ".error-selection",
+    content: "Once you find an error, select the error type that best describes the mistake.",
+    position: "left"
+  },
+  {
+    target: ".guidance-form",
+    content: "Provide guidance to help the AI correct its reasoning. Remember to be specific but not too revealing in your first hint.",
+    position: "left"
+  },
+  {
+    target: ".submit-guidance",
+    content: "Submit your guidance to get a revised solution. You can then review the new solution and either mark it as correct or provide additional guidance.",
+    position: "top"
+  }
+];
+
 const Annotation = () => {
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null);
   const [errorType, setErrorType] = useState<string | null>(null);
@@ -49,6 +79,28 @@ const Annotation = () => {
   const [currentTab, setCurrentTab] = useState('initial');
   const [attemptNumber, setAttemptNumber] = useState(1);
   const [isRevised, setIsRevised] = useState(false);
+  const [showWalkthrough, setShowWalkthrough] = useState(true);
+  
+  // Load walkthrough preference from localStorage
+  useEffect(() => {
+    const hasSeenWalkthrough = localStorage.getItem('hasSeenWalkthrough');
+    if (hasSeenWalkthrough) {
+      setShowWalkthrough(false);
+    }
+  }, []);
+  
+  const handleWalkthroughComplete = () => {
+    setShowWalkthrough(false);
+    localStorage.setItem('hasSeenWalkthrough', 'true');
+    toast({
+      title: "Walkthrough Complete",
+      description: "You can restart the walkthrough anytime by clicking the help button in the top right.",
+    });
+  };
+  
+  const handleRestartWalkthrough = () => {
+    setShowWalkthrough(true);
+  };
   
   const handleSubmitGuidance = () => {
     if (!selectedStepIndex && selectedStepIndex !== 0) {
@@ -105,15 +157,26 @@ const Annotation = () => {
       
       <main className="pt-24 px-6">
         <div className="max-w-7xl mx-auto">
-          <AnimatedPanel animation="fade-in" className="mb-8">
-            <h1 className="text-3xl font-medium">Math Reasoning Annotation Tool</h1>
-            <p className="text-gray-600 mt-2">
-              Review solutions, identify errors, and provide guidance to improve mathematical reasoning.
-            </p>
+          <AnimatedPanel animation="fade-in" className="mb-8 flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-medium">Math Reasoning Annotation Tool</h1>
+              <p className="text-gray-600 mt-2">
+                Review solutions, identify errors, and provide guidance to improve mathematical reasoning.
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-1"
+              onClick={handleRestartWalkthrough}
+            >
+              <HelpCircle className="h-4 w-4" />
+              Help
+            </Button>
           </AnimatedPanel>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <AnimatedPanel animation="slide-in-up" className="lg:col-span-3">
+            <AnimatedPanel animation="slide-in-up" className="lg:col-span-3 problem-card">
               <ProblemCard 
                 id={sampleProblem.id}
                 category={sampleProblem.category}
@@ -122,7 +185,7 @@ const Annotation = () => {
               />
             </AnimatedPanel>
             
-            <AnimatedPanel animation="slide-in-left" delay={100} className="lg:col-span-2">
+            <AnimatedPanel animation="slide-in-left" delay={100} className="lg:col-span-2 solution-steps">
               <Tabs defaultValue="initial" value={currentTab} onValueChange={setCurrentTab}>
                 <TabsList className="mb-4">
                   <TabsTrigger value="initial">Initial Solution</TabsTrigger>
@@ -159,19 +222,23 @@ const Annotation = () => {
             </AnimatedPanel>
             
             <AnimatedPanel animation="slide-in-right" delay={200} className="space-y-6">
-              <ErrorSelection 
-                selectedErrorType={errorType}
-                onErrorTypeChange={setErrorType}
-              />
+              <div className="error-selection">
+                <ErrorSelection 
+                  selectedErrorType={errorType}
+                  onErrorTypeChange={setErrorType}
+                />
+              </div>
               
-              <GuidanceForm
-                guidanceText={guidanceText}
-                selectedGuidanceType={guidanceType}
-                onGuidanceTextChange={setGuidanceText}
-                onGuidanceTypeChange={setGuidanceType}
-                onSubmitGuidance={handleSubmitGuidance}
-                currentAttemptNumber={attemptNumber}
-              />
+              <div className="guidance-form">
+                <GuidanceForm
+                  guidanceText={guidanceText}
+                  selectedGuidanceType={guidanceType}
+                  onGuidanceTextChange={setGuidanceText}
+                  onGuidanceTypeChange={setGuidanceType}
+                  onSubmitGuidance={handleSubmitGuidance}
+                  currentAttemptNumber={attemptNumber}
+                />
+              </div>
               
               <Card className="shadow-md">
                 <CardHeader className="bg-secondary/50 p-4">
@@ -204,6 +271,13 @@ const Annotation = () => {
           </div>
         </div>
       </main>
+      
+      {showWalkthrough && (
+        <WalkthroughTooltip 
+          steps={walkthroughSteps} 
+          onComplete={handleWalkthroughComplete}
+        />
+      )}
     </div>
   );
 };
