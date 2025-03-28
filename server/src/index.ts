@@ -1,12 +1,12 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { config as dotenvConfig } from 'dotenv';
-dotenvConfig();
 import { initSupabase } from './config/supabase';
 import problemRoutes from './routes/problemRoutes';
 import annotationRoutes from './routes/annotationRoutes';
 
 // Load environment variables
+dotenvConfig();
 
 // Connect to Supabase
 (async () => {
@@ -16,7 +16,7 @@ import annotationRoutes from './routes/annotationRoutes';
 
 // Initialize express
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
@@ -82,29 +82,3 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 export default app;
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import path from 'path';
-
-dotenv.config();
-
-const app = express();
-const PORT = process.env.PORT || 5000;
-
-app.use(cors());
-app.use(express.json());
-
-// Serve static files from the React app
-app.use(express.static(path.join(__dirname, '../../../dist')));
-
-// API routes go here
-
-// Handle React routing, return all requests to React app
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../../dist/index.html'));
-});
-
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-});

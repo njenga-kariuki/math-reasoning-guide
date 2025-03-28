@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { validationResult } from 'express-validator';
+import { check, validationResult } from 'express-validator';
 import { problemService } from '../services/supabaseService';
 
 // Get all problems
