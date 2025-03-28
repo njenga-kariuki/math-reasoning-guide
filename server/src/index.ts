@@ -37,7 +37,7 @@ app.get('/', (req, res) => {
 // Test route to check database connectivity
 app.get('/api/test', async (req, res) => {
   try {
-    const { data, error } = await supabase.from('problems').select('count');
+    const { data, error } = await supabase.from('problems').select('count').single();
 
     if (error) {
       console.error('Test endpoint - Supabase error:', error);
@@ -77,7 +77,7 @@ app.get('/api/test', async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
 
