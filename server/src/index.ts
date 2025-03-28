@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { config as dotenvConfig } from 'dotenv';
-import { initSupabase } from './config/supabase';
+import { initSupabase, supabase } from './config/supabase';
 import problemRoutes from './routes/problemRoutes';
 import annotationRoutes from './routes/annotationRoutes';
 
