@@ -1,5 +1,5 @@
 import express from 'express';
-import { body } from 'express-validator';
+import { body, validationResult } from 'express-validator';
 import * as problemController from '../controllers/problemController';
 
 const router = express.Router();

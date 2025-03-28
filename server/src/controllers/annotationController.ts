@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
 console.log('express-validator package:', require('express-validator'));
 console.log('express-validator version:', require('express-validator/package.json').version);
-import { body } from 'express-validator';
-import validationResult from 'express-validator';
+import { body, validationResult } from 'express-validator';
 import { annotationService, problemService } from '../services/supabaseService';
 import claudeService from '../services/claude';
 
@@ -10,15 +9,15 @@ import claudeService from '../services/claude';
 export const getAnnotations = async (req: Request, res: Response) => {
   try {
     const { problem_id, complete } = req.query;
-    
+
     // Build filter object based on query parameters
     const filter: any = {};
-    
+
     if (problem_id) filter.problem_id = problem_id;
     if (complete !== undefined) filter.is_complete = complete === 'true';
-    
+
     const annotations = await annotationService.getAnnotations(filter);
-    
+
     res.status(200).json({
       success: true,
       count: annotations.length,
@@ -37,14 +36,14 @@ export const getAnnotations = async (req: Request, res: Response) => {
 export const getAnnotation = async (req: Request, res: Response) => {
   try {
     const annotation = await annotationService.getAnnotation(req.params.id);
-    
+
     if (!annotation) {
       return res.status(404).json({
         success: false,
         error: 'Annotation not found'
       });
     }
-    
+
     res.status(200).json({
       success: true,
       data: annotation
@@ -62,7 +61,7 @@ export const getAnnotation = async (req: Request, res: Response) => {
 export const startAnnotation = async (req: Request, res: Response) => {
   try {
     const { problem_id } = req.body;
-    
+
     // Validate input
     if (!problem_id) {
       return res.status(400).json({
@@ -70,17 +69,17 @@ export const startAnnotation = async (req: Request, res: Response) => {
         error: 'Problem ID is required'
       });
     }
-    
+
     // Find the problem
     const problem = await problemService.getProblem(problem_id);
-    
+
     if (!problem) {
       return res.status(404).json({
         success: false,
         error: 'Problem not found'
       });
     }
-    
+
     // Check if problem is already annotated or discarded
     if (problem.is_annotated) {
       return res.status(400).json({
@@ -88,17 +87,17 @@ export const startAnnotation = async (req: Request, res: Response) => {
         error: 'Problem is already annotated'
       });
     }
-    
+
     if (problem.is_discarded) {
       return res.status(400).json({
         success: false,
         error: 'Problem is already discarded'
       });
     }
-    
+
     // Get initial solution from Claude
     const initialSolutionSteps = await claudeService.getInitialSolution(problem.problem_text);
-    
+
     // Create a new annotation
     const annotation = await annotationService.createAnnotation({
       problem_id: problem.problem_id,
@@ -117,7 +116,7 @@ export const startAnnotation = async (req: Request, res: Response) => {
       intervention_count: 0,
       is_complete: false
     });
-    
+
     res.status(201).json({
       success: true,
       data: annotation
@@ -142,7 +141,7 @@ export const submitGuidance = async (req: Request, res: Response) => {
         errors: errors.array()
       });
     }
-    
+
     const { 
       error_index, 
       error_step_content, 
@@ -150,17 +149,17 @@ export const submitGuidance = async (req: Request, res: Response) => {
       guidance_provided, 
       guidance_type 
     } = req.body;
-    
+
     // Find the annotation
     const annotation = await annotationService.getAnnotation(req.params.id);
-    
+
     if (!annotation) {
       return res.status(404).json({
         success: false,
         error: 'Annotation not found'
       });
     }
-    
+
     // Check if annotation is already complete
     if (annotation.is_complete) {
       return res.status(400).json({
@@ -168,17 +167,17 @@ export const submitGuidance = async (req: Request, res: Response) => {
         error: 'Annotation is already complete'
       });
     }
-    
+
     // Determine which attempt this is
     const attemptNumber = annotation.intervention_count + 1;
-    
+
     // Get the appropriate solution steps to revise
     const stepsToRevise = attemptNumber === 1 
       ? annotation.initial_solution_steps 
       : (annotation.revised_solution_steps.length > 0 
           ? annotation.revised_solution_steps 
           : annotation.initial_solution_steps);
-    
+
     // Get revised solution from Claude
     const revisedSolutionSteps = await claudeService.getRevisedSolution(
       annotation.problem_text,
@@ -187,7 +186,7 @@ export const submitGuidance = async (req: Request, res: Response) => {
       guidance_provided,
       attemptNumber
     );
-    
+
     // Update the annotation based on the attempt number
     if (attemptNumber === 1) {
       // First attempt
@@ -217,10 +216,10 @@ export const submitGuidance = async (req: Request, res: Response) => {
       annotation.revision_outcome_3 = 'STILL_WRONG'; // Default, will be updated when marked
       annotation.intervention_count = attemptNumber;
     }
-    
+
     // Update the annotation using the service
     const updatedAnnotation = await annotationService.updateAnnotation(annotation.id, annotation);
-    
+
     res.status(200).json({
       success: true,
       data: updatedAnnotation
@@ -238,7 +237,7 @@ export const submitGuidance = async (req: Request, res: Response) => {
 export const markAsCorrect = async (req: Request, res: Response) => {
   try {
     const { outcome } = req.body;
-    
+
     // Validate outcome
     if (!outcome || !['CORRECTED', 'STILL_WRONG', 'DIFFERENT_ERROR'].includes(outcome)) {
       return res.status(400).json({
@@ -246,20 +245,20 @@ export const markAsCorrect = async (req: Request, res: Response) => {
         error: 'Valid outcome is required (CORRECTED, STILL_WRONG, DIFFERENT_ERROR)'
       });
     }
-    
+
     // Find the annotation
     const annotation = await annotationService.getAnnotation(req.params.id);
-    
+
     if (!annotation) {
       return res.status(404).json({
         success: false,
         error: 'Annotation not found'
       });
     }
-    
+
     // Check which attempt this is
     const attemptNumber = annotation.intervention_count;
-    
+
     // Update the appropriate revision outcome
     if (attemptNumber === 1) {
       annotation.revision_outcome = outcome;
@@ -268,7 +267,7 @@ export const markAsCorrect = async (req: Request, res: Response) => {
     } else {
       annotation.revision_outcome_3 = outcome;
     }
-    
+
     // Set final solution steps based on the latest revision
     if (attemptNumber === 1) {
       annotation.final_solution_steps = annotation.revised_solution_steps;
@@ -279,16 +278,16 @@ export const markAsCorrect = async (req: Request, res: Response) => {
                                         annotation.revised_solution_steps_2 || 
                                         annotation.revised_solution_steps;
     }
-    
+
     // Mark annotation as complete
     annotation.is_complete = true;
-    
+
     // Update the annotation
     await annotationService.updateAnnotation(annotation.id!, annotation);
-    
+
     // Update the problem as annotated
     await problemService.updateProblem(annotation.problem_id, { is_annotated: true });
-    
+
     res.status(200).json({
       success: true,
       data: annotation,
@@ -307,7 +306,7 @@ export const markAsCorrect = async (req: Request, res: Response) => {
 export const discardProblem = async (req: Request, res: Response) => {
   try {
     const { problem_id } = req.body;
-    
+
     // Validate input
     if (!problem_id) {
       return res.status(400).json({
@@ -315,17 +314,17 @@ export const discardProblem = async (req: Request, res: Response) => {
         error: 'Problem ID is required'
       });
     }
-    
+
     // Update the problem as discarded
     const problem = await problemService.discardProblem(problem_id);
-    
+
     if (!problem) {
       return res.status(404).json({
         success: false,
         error: 'Problem not found'
       });
     }
-    
+
     res.status(200).json({
       success: true,
       data: problem,
