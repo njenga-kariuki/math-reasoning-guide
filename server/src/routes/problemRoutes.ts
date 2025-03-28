@@ -1,6 +1,8 @@
 import express from 'express';
-import expressValidator from 'express-validator';
-const { body, validationResult } = expressValidator;
+import * as expressValidator from 'express-validator';
+
+console.log('express-validator exports:', Object.keys(expressValidator));
+console.log('express-validator type:', typeof expressValidator);
 import * as problemController from '../controllers/problemController';
 
 const router = express.Router();
