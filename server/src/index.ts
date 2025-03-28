@@ -1,12 +1,12 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import { config as dotenvConfig } from 'dotenv';
+dotenvConfig();
 import { initSupabase } from './config/supabase';
 import problemRoutes from './routes/problemRoutes';
 import annotationRoutes from './routes/annotationRoutes';
 
 // Load environment variables
-dotenv.config();
 
 // Connect to Supabase
 (async () => {
