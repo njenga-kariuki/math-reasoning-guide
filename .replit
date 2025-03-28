@@ -7,3 +7,35 @@ channel = "stable-24_05"
 [deployment]
 run = ["sh", "-c", "node server/dist/index.js"]
 build = ["sh", "-c", "npm run build && cd server && npm run build"]
+
+[workflows]
+
+[[workflows.workflow]]
+name = "Frontend Dev"
+author = 1468645
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd ."
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+
+[[workflows.workflow]]
+name = "Backend Dev"
+author = 1468645
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd server"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+
+[[ports]]
+localPort = 8080
+externalPort = 80
