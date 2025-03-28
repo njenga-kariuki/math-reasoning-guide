@@ -1,4 +1,6 @@
 import { Request, Response } from 'express';
+console.log('express-validator package:', require('express-validator'));
+console.log('express-validator version:', require('express-validator/package.json').version);
 import { body } from 'express-validator';
 import validationResult from 'express-validator';
 import { annotationService, problemService } from '../services/supabaseService';
