@@ -1,5 +1,6 @@
 import express from 'express';
-import { checkSchema as body, validationResult } from 'express-validator';
+import expressValidator from 'express-validator';
+const { body, validationResult } = expressValidator;
 import * as problemController from '../controllers/problemController';
 
 const router = express.Router();
