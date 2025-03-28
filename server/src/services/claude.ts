@@ -34,7 +34,7 @@ export const getInitialSolution = async (problemText: string): Promise<string[]>
     });
 
     // Parse the response to extract steps
-    const content = response.content[0].text;
+    const content = response.content[0].type === 'text' ? response.content[0].text : '';
     const steps = parseSteps(content);
     return steps;
   } catch (error) {
@@ -95,7 +95,7 @@ ${formattedPreviousSteps}`;
     });
 
     // Parse the response to extract steps
-    const content = response.content[0].text;
+    const content = response.content[0].type === 'text' ? response.content[0].text : '';
     const steps = parseSteps(content);
     return steps;
   } catch (error) {
@@ -112,23 +112,23 @@ ${formattedPreviousSteps}`;
 const parseSteps = (content: string): string[] => {
   // Split the content by lines
   const lines = content.split('\n');
-  
+
   // Initialize an array to store the steps
   const steps: string[] = [];
-  
+
   // Regular expressions to match step patterns
   const stepPatterns = [
     /^Step\s+(\d+):\s*(.*)/i,  // Matches "Step 1: content"
     /^(\d+)\.\s*(.*)/,         // Matches "1. content"
   ];
-  
+
   // Process each line
   let currentStep = '';
-  
+
   for (const line of lines) {
     let isNewStep = false;
     let stepContent = '';
-    
+
     // Check if the line starts a new step
     for (const pattern of stepPatterns) {
       const match = line.match(pattern);
@@ -138,7 +138,7 @@ const parseSteps = (content: string): string[] => {
         break;
       }
     }
-    
+
     // If this is a new step and we have content from a previous step
     if (isNewStep && currentStep) {
       steps.push(currentStep.trim());
@@ -153,12 +153,12 @@ const parseSteps = (content: string): string[] => {
       currentStep += ' ' + line.trim();
     }
   }
-  
+
   // Add the last step if there is one
   if (currentStep) {
     steps.push(currentStep.trim());
   }
-  
+
   return steps;
 };
 

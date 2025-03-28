@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { check, validationResult } from 'express-validator';
+import { ValidationChain, body } from 'express-validator';
 import * as annotationController from '../controllers/annotationController';
 
 const router = express.Router();
