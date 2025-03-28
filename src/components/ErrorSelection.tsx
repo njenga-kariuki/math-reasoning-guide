@@ -13,7 +13,8 @@ const ERROR_TYPES = [
   { value: 'logical_reasoning_error', label: 'Logical Reasoning Error' },
   { value: 'domain_constraint_error', label: 'Domain Constraint Error' },
   { value: 'formula_application_error', label: 'Formula Application Error' },
-  { value: 'notation_error', label: 'Notation Error' }
+  { value: 'notation_error', label: 'Notation Error' },
+  { value: 'other', label: 'Other' }
 ];
 
 interface ErrorSelectionProps {

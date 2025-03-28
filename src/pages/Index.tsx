@@ -88,14 +88,36 @@ const Index = () => {
                     <div>
                       <h3 className="text-xl font-medium mb-2">Provide Appropriate Guidance</h3>
                       <p className="text-gray-700 mb-4">
-                        Select a guidance type and write a helpful hint. For the first attempt, provide minimal guidance that points to the issue without giving away the full solution.
+                        Select a guidance type and write a helpful hint. Your guidance will follow a 3-level escalation pattern depending on the attempt number.
                       </p>
                       <div className="bg-yellow-50 border border-yellow-100 rounded-lg p-4 mb-4">
-                        <p className="text-sm text-gray-700">
-                          <strong>First attempt:</strong> "When differentiating y = (c₁ + c₂x)e^(-2x), remember to apply the product rule correctly."
-                          <br/><br/>
-                          <strong>Second attempt (if needed):</strong> "The derivative should be (c₁ + c₂x)·(-2e^(-2x)) + (c₂)·(e^(-2x)). Check your calculation again."
-                        </p>
+                        <h4 className="font-medium text-yellow-800 mb-2">Escalating Guidance Levels:</h4>
+                        <ol className="space-y-4">
+                          <li>
+                            <p className="text-sm font-medium text-gray-700">Level 1: Directional Guidance (First Attempt)</p>
+                            <p className="text-sm text-gray-700 ml-4">
+                              Provide a hint pointing to the error without revealing the solution. Identify the specific concept being misapplied and encourage reflection.
+                              <br />
+                              <em>Example: "When differentiating y = (c₁ + c₂x)e^(-2x), remember to consider the product rule."</em>
+                            </p>
+                          </li>
+                          <li>
+                            <p className="text-sm font-medium text-gray-700">Level 2: Targeted Guidance (Second Attempt)</p>
+                            <p className="text-sm text-gray-700 ml-4">
+                              Offer specific recommendations toward the correct method. Suggest relevant formulas or techniques to apply.
+                              <br />
+                              <em>Example: "The derivative should use the product rule: (c₁ + c₂x)·(-2e^(-2x)) + (c₂)·(e^(-2x)). Check your calculation."</em>
+                            </p>
+                          </li>
+                          <li>
+                            <p className="text-sm font-medium text-gray-700">Level 3: Complete Correction (Final Attempt)</p>
+                            <p className="text-sm text-gray-700 ml-4">
+                              Provide the precise correction needed to ensure the solution pathway can continue.
+                              <br />
+                              <em>Example: "The correct derivative is y' = -2(c₁ + c₂x)e^(-2x) + c₂e^(-2x) = c₂e^(-2x) - 2c₁e^(-2x) - 2c₂xe^(-2x)."</em>
+                            </p>
+                          </li>
+                        </ol>
                       </div>
                     </div>
                   </li>
@@ -147,6 +169,10 @@ const Index = () => {
                         <p className="font-medium">Domain Constraint Error</p>
                         <p className="text-sm text-gray-600">Overlooked mathematical constraints or boundary conditions.</p>
                       </li>
+                      <li>
+                        <p className="font-medium">Notation Error</p>
+                        <p className="text-sm text-gray-600">Improper use of mathematical symbols or notation conventions.</p>
+                      </li>
                     </ul>
                   </div>
                   <div>
@@ -163,6 +189,10 @@ const Index = () => {
                       <li>
                         <p className="font-medium">Approach Selection Error</p>
                         <p className="text-sm text-gray-600">Selection of inefficient or incorrect solution paths.</p>
+                      </li>
+                      <li>
+                        <p className="font-medium">Other</p>
+                        <p className="text-sm text-gray-600">Any error that doesn't fit into the categories above.</p>
                       </li>
                     </ul>
                   </div>

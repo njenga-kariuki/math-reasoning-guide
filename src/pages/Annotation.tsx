@@ -47,27 +47,27 @@ const walkthroughSteps = [
   {
     target: ".problem-card",
     content: "Start by reviewing the problem. Understand what's being asked and the context of the problem.",
-    position: "bottom"
+    position: "bottom" as const
   },
   {
     target: ".solution-steps",
     content: "Review the AI's solution steps carefully, searching for the first error in the reasoning process.",
-    position: "right"
+    position: "right" as const
   },
   {
     target: ".error-selection",
     content: "Once you find an error, select the error type that best describes the mistake.",
-    position: "left"
+    position: "left" as const
   },
   {
     target: ".guidance-form",
     content: "Provide guidance to help the AI correct its reasoning. Remember to be specific but not too revealing in your first hint.",
-    position: "left"
+    position: "left" as const
   },
   {
     target: ".submit-guidance",
     content: "Submit your guidance to get a revised solution. You can then review the new solution and either mark it as correct or provide additional guidance.",
-    position: "top"
+    position: "top" as const
   }
 ];
 
