@@ -6,7 +6,6 @@ import SolutionSteps from '@/components/SolutionSteps';
 import ErrorSelection from '@/components/ErrorSelection';
 import GuidanceForm from '@/components/GuidanceForm';
 import AnimatedPanel from '@/components/AnimatedPanel';
-import WalkthroughTooltip from '@/components/WalkthroughTooltip';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,34 +14,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Loader2, HelpCircle, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import * as api from '@/lib/api';
 import { Problem, Annotation as AnnotationType, ErrorType, GuidanceType, RevisionOutcome, GUIDANCE_TYPES, ERROR_TYPES } from '@/types';
-
-const walkthroughSteps = [
-  {
-    target: ".problem-card",
-    content: "Start by reviewing the problem. Understand what's being asked and the context of the problem.",
-    position: "bottom" as const
-  },
-  {
-    target: ".solution-steps",
-    content: "Review the AI's solution steps carefully, searching for the first error in the reasoning process.",
-    position: "right" as const
-  },
-  {
-    target: ".error-selection",
-    content: "Once you find an error, select the error type that best describes the mistake.",
-    position: "left" as const
-  },
-  {
-    target: ".guidance-form",
-    content: "Provide guidance to help the AI correct its reasoning. Remember to be specific but not too revealing in your first hint.",
-    position: "left" as const
-  },
-  {
-    target: ".submit-guidance",
-    content: "Submit your guidance to get a revised solution. You can then review the new solution and either mark it as correct or provide additional guidance.",
-    position: "top" as const
-  }
-];
 
 const Annotation = () => {
   const queryClient = useQueryClient();
@@ -54,7 +25,6 @@ const Annotation = () => {
   const [guidanceText, setGuidanceText] = useState('');
   const [currentTab, setCurrentTab] = useState('initial');
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
-  const [showWalkthrough, setShowWalkthrough] = useState(false);
   
   // Get a random problem to annotate - but don't fetch automatically
   const { 
@@ -106,43 +76,170 @@ const Annotation = () => {
   const annotation = annotationData?.data as AnnotationType | undefined;
   const problem = problemData?.data as Problem | undefined;
   
-  // Determine which solution steps to show based on the intervention count
-  const getStepsToShow = () => {
-    if (!annotation) return [];
-    
-    if (currentTab === 'initial') {
-      return annotation.initial_solution_steps;
-    } else if (annotation.intervention_count === 1) {
-      return annotation.revised_solution_steps;
-    } else if (annotation.intervention_count === 2) {
-      return annotation.revised_solution_steps_2 || [];
-    } else {
-      return annotation.revised_solution_steps_3 || [];
+  // Add state for directly managing annotation data when needed
+  const [manualAnnotation, setManualAnnotation] = useState<AnnotationType | null>(null);
+
+  // Use either the query-provided annotation or the manually set one
+  const effectiveAnnotation = manualAnnotation || annotation;
+  
+  // Add effect to log annotation state changes
+  useEffect(() => {
+    // Log annotation state whenever it changes
+    if (effectiveAnnotation) {
+      console.log("Current annotation state:", {
+        id: effectiveAnnotation.id,
+        interventionCount: effectiveAnnotation.intervention_count,
+        initialStepsCount: effectiveAnnotation.initial_solution_steps?.length,
+        revisedStepsCount: effectiveAnnotation.revised_solution_steps?.length,
+        revisedSteps2Count: effectiveAnnotation.revised_solution_steps_2?.length,
+        revisedSteps3Count: effectiveAnnotation.revised_solution_steps_3?.length,
+        currentTab,
+        isManuallySet: !!manualAnnotation
+      });
     }
-  };
+  }, [effectiveAnnotation, currentTab, manualAnnotation]);
+  
+  // Check if revised steps are available
+  const revisedStepsAvailable = effectiveAnnotation && 
+    ((effectiveAnnotation.intervention_count === 1 && Array.isArray(effectiveAnnotation.revised_solution_steps) && effectiveAnnotation.revised_solution_steps?.length > 0) ||
+    (effectiveAnnotation.intervention_count === 2 && Array.isArray(effectiveAnnotation.revised_solution_steps_2) && effectiveAnnotation.revised_solution_steps_2?.length > 0) ||
+    (effectiveAnnotation.intervention_count === 3 && Array.isArray(effectiveAnnotation.revised_solution_steps_3) && effectiveAnnotation.revised_solution_steps_3?.length > 0));
   
   // Determine if the solution has been revised
-  const isRevised = annotation?.revised_solution_steps?.length > 0;
+  const isRevised = revisedStepsAvailable;
+  
+  console.log(`Revised steps available: ${revisedStepsAvailable}, Current tab: ${currentTab}`);
+  
+  // Effect to handle tab switching based on data availability
+  useEffect(() => {
+    if (!revisedStepsAvailable && currentTab === 'revised') {
+      console.warn("Tried to show revised tab but no revised steps are available, reverting to initial tab");
+      setCurrentTab('initial');
+    }
+  }, [revisedStepsAvailable, currentTab]);
+  
+  // Show a reminder toast when users switch from revised to initial tab
+  useEffect(() => {
+    if (isRevised && currentTab === 'initial') {
+      // Don't show on initial load
+      if (effectiveAnnotation?.intervention_count > 0) {
+        toast({
+          title: "Reference View",
+          description: "This is the original solution for reference. Please evaluate the revised solution for any remaining errors.",
+          duration: 3000
+        });
+      }
+    }
+  }, [isRevised, currentTab, effectiveAnnotation?.intervention_count]);
+  
+  // Determine which solution steps to show based on the intervention count
+  const getStepsToShow = () => {
+    if (!effectiveAnnotation) {
+      console.log("getStepsToShow: No annotation available");
+      return [];
+    }
+    
+    console.log("getStepsToShow called:", {
+      currentTab,
+      interventionCount: effectiveAnnotation.intervention_count,
+      initialSteps: effectiveAnnotation.initial_solution_steps?.length,
+      revisedSteps: effectiveAnnotation.revised_solution_steps?.length,
+      revisedSteps2: effectiveAnnotation.revised_solution_steps_2?.length,
+      revisedSteps3: effectiveAnnotation.revised_solution_steps_3?.length,
+      isManuallySet: !!manualAnnotation
+    });
+    
+    if (currentTab === 'initial') {
+      return effectiveAnnotation.initial_solution_steps || [];
+    } 
+    
+    // For revised tab, explicitly check the intervention count and array existence
+    if (effectiveAnnotation.intervention_count === 1 && Array.isArray(effectiveAnnotation.revised_solution_steps) && effectiveAnnotation.revised_solution_steps.length > 0) {
+      console.log("Returning revised_solution_steps (attempt 1)");
+      return effectiveAnnotation.revised_solution_steps;
+    } else if (effectiveAnnotation.intervention_count === 2 && Array.isArray(effectiveAnnotation.revised_solution_steps_2) && effectiveAnnotation.revised_solution_steps_2.length > 0) {
+      console.log("Returning revised_solution_steps_2 (attempt 2)");
+      return effectiveAnnotation.revised_solution_steps_2;
+    } else if (effectiveAnnotation.intervention_count === 3 && Array.isArray(effectiveAnnotation.revised_solution_steps_3) && effectiveAnnotation.revised_solution_steps_3.length > 0) {
+      console.log("Returning revised_solution_steps_3 (attempt 3)");
+      return effectiveAnnotation.revised_solution_steps_3;
+    }
+    
+    // Fallback to initial if we don't have revised steps
+    console.warn("No matching revised steps found for current intervention count, falling back to initial steps");
+    return effectiveAnnotation.initial_solution_steps || [];
+  };
   
   // Submit guidance mutation
   const submitGuidanceMutation = useMutation({
     mutationFn: (guidanceData: any) => {
-      return api.submitGuidance(annotation?.id || '', guidanceData);
+      return api.submitGuidance(effectiveAnnotation?.id || '', guidanceData);
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['annotation'] });
+      console.log("Guidance submission successful, received data:", data);
+
+      // Get the updated annotation directly from the response
+      const updatedAnnotation = data?.data;
+      
+      if (!updatedAnnotation || !updatedAnnotation.id) {
+        console.error("Missing or invalid annotation in response");
+        toast({
+          title: "Error",
+          description: "Received incomplete data from server. Please refresh.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      console.log(`Updated annotation data received with ID: ${updatedAnnotation.id}`);
+      
+      // Check if the revised steps are actually available
+      const interventionCount = updatedAnnotation.intervention_count;
+      const hasRevisedSteps = 
+        interventionCount === 1 ? Array.isArray(updatedAnnotation.revised_solution_steps) && updatedAnnotation.revised_solution_steps?.length > 0 :
+        interventionCount === 2 ? Array.isArray(updatedAnnotation.revised_solution_steps_2) && updatedAnnotation.revised_solution_steps_2?.length > 0 :
+        Array.isArray(updatedAnnotation.revised_solution_steps_3) && updatedAnnotation.revised_solution_steps_3?.length > 0;
+        
+      console.log(`Updated annotation from response - ID: ${updatedAnnotation.id}, intervention count: ${interventionCount}, has revised steps: ${hasRevisedSteps}`);
+      
+      if (!hasRevisedSteps) {
+        console.error("Updated annotation doesn't contain expected revised steps!");
+        toast({
+          title: "Warning",
+          description: "Server returned incomplete data. Try refreshing the page.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // *** CRITICAL FIX: Directly update our component state with the new annotation ***
+      setManualAnnotation(updatedAnnotation);
+      
+      // AFTER setting the annotation, now we can update the UI
       setCurrentTab('revised');
-      toast({
-        title: "Guidance Submitted",
-        description: "The AI has revised its solution based on your guidance"
-      });
-      // Reset form
       setSelectedStepIndex(null);
       setErrorType(null);
       setGuidanceType(null);
       setGuidanceText('');
+      
+      // Update the cache too, but we're not relying on it for the immediate UI update
+      queryClient.invalidateQueries({ queryKey: ['annotation'] });
+      
+      // Also update the specific annotation query
+      queryClient.setQueryData(['annotation', updatedAnnotation.id], { success: true, data: updatedAnnotation });
+      
+      toast({
+        title: "Guidance Submitted", 
+        description: "The AI has revised its solution based on your guidance"
+      });
+
+      // Scroll back to the top of the solution area after a brief delay to allow rendering
+      setTimeout(() => {
+        document.querySelector('.solution-steps')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     },
     onError: (error) => {
+      console.error("Error submitting guidance:", error);
       toast({
         title: "Error",
         description: "Failed to submit guidance. Please try again.",
@@ -154,7 +251,7 @@ const Annotation = () => {
   // Mark as correct mutation
   const markAsCorrectMutation = useMutation({
     mutationFn: (outcome: RevisionOutcome) => {
-      return api.markAsCorrect(annotation?.id || '', outcome);
+      return api.markAsCorrect(effectiveAnnotation?.id || '', outcome);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['annotation'] });
@@ -197,27 +294,6 @@ const Annotation = () => {
       });
     }
   });
-  
-  // Load walkthrough preference from localStorage
-  useEffect(() => {
-    const hasSeenWalkthrough = localStorage.getItem('hasSeenWalkthrough');
-    if (!hasSeenWalkthrough) {
-      setShowWalkthrough(true);
-    }
-  }, []);
-  
-  const handleWalkthroughComplete = () => {
-    setShowWalkthrough(false);
-    localStorage.setItem('hasSeenWalkthrough', 'true');
-    toast({
-      title: "Walkthrough Complete",
-      description: "You can restart the walkthrough anytime by clicking the help button in the top right.",
-    });
-  };
-  
-  const handleRestartWalkthrough = () => {
-    setShowWalkthrough(true);
-  };
   
   const handleSubmitGuidance = () => {
     if (!selectedStepIndex && selectedStepIndex !== 0) {
@@ -313,7 +389,7 @@ const Annotation = () => {
   }
   
   // If no problem is found
-  if (!problem || !annotation) {
+  if (!problem || !effectiveAnnotation) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
         <Card className="w-full max-w-md">
@@ -354,130 +430,65 @@ const Annotation = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 pb-16">
       <Header />
       
-      <main className="pt-24 px-6">
+      <main className="pt-20 px-3 sm:pt-24 sm:px-6">
         <div className="max-w-7xl mx-auto">
-          <AnimatedPanel animation="fade-in" className="mb-8 flex justify-between items-center">
-            <div>
-              <h1 className="text-3xl font-medium">Math Reasoning Annotation Tool</h1>
-              <p className="text-gray-600 mt-2">
-                Review solutions, identify errors, and provide guidance to improve mathematical reasoning.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
-                <AlertDialogTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex items-center gap-1 border-red-200 text-red-600 hover:bg-red-50"
-                  >
-                    <AlertTriangle className="h-4 w-4" />
-                    Discard Problem
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure you want to discard this problem?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. The problem will be marked as discarded and you will be assigned a new problem.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction 
-                      onClick={handleDiscardProblem}
-                      className="bg-red-600 hover:bg-red-700"
-                    >
-                      Discard Problem
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-              
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="flex items-center gap-1"
-                onClick={handleRestartWalkthrough}
-              >
-                <HelpCircle className="h-4 w-4" />
-                Help
-              </Button>
-            </div>
-          </AnimatedPanel>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <AnimatedPanel animation="slide-in-up" className="lg:col-span-3 problem-card">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 sm:gap-5">
+            <AnimatedPanel animation="slide-in-up" className="lg:col-span-5 problem-card mb-4">
               <ProblemCard 
                 id={problem.problem_id}
                 category={problem.problem_category}
                 difficulty={problem.difficulty_level}
                 text={problem.problem_text}
+                showDiscardDialog={showDiscardDialog}
+                setShowDiscardDialog={setShowDiscardDialog}
+                onDiscard={handleDiscardProblem}
               />
             </AnimatedPanel>
             
-            <AnimatedPanel animation="slide-in-left" delay={100} className="lg:col-span-2 solution-steps">
+            <AnimatedPanel animation="slide-in-left" delay={100} className="lg:col-span-3 solution-steps">
               <Tabs defaultValue="initial" value={currentTab} onValueChange={setCurrentTab}>
-                <TabsList className="mb-4">
-                  <TabsTrigger value="initial">Initial Solution</TabsTrigger>
-                  <TabsTrigger value="revised" disabled={!isRevised}>Revised Solution</TabsTrigger>
+                <TabsList className="mb-2">
+                  <TabsTrigger value="initial" className="font-medium">Initial Solution</TabsTrigger>
+                  <TabsTrigger value="revised" disabled={!isRevised} className="font-medium">Revised Solution</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="initial" className="mt-0">
                   <SolutionSteps
-                    steps={annotation.initial_solution_steps}
-                    title="Initial Solution"
-                    selectedStepIndex={selectedStepIndex}
-                    onStepSelect={setSelectedStepIndex}
+                    steps={effectiveAnnotation.initial_solution_steps}
+                    title={isRevised ? "Initial Solution (Reference Only)" : "Initial Solution"}
+                    selectedStepIndex={isRevised ? null : selectedStepIndex}
+                    onStepSelect={isRevised ? undefined : setSelectedStepIndex}
                   />
+                  {isRevised && (
+                    <div className="mt-2 p-2 bg-amber-50 rounded-md border border-amber-200 text-xs text-amber-700">
+                      This is the original solution for reference only. Please use the Revised Solution tab to identify any additional errors.
+                    </div>
+                  )}
                 </TabsContent>
                 
                 <TabsContent value="revised" className="mt-0">
                   <SolutionSteps
                     steps={getStepsToShow()}
-                    title={`Revised Solution (Attempt ${annotation.intervention_count})`}
-                    selectedStepIndex={null}
+                    title={`Revised Solution (Attempt ${effectiveAnnotation.intervention_count})`}
+                    selectedStepIndex={selectedStepIndex}
+                    onStepSelect={setSelectedStepIndex}
                   />
                   
-                  <div className="mt-6 flex justify-between">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setCurrentTab('initial')}
-                    >
-                      View Original Solution
-                    </Button>
-                    
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline"
-                        onClick={() => handleMarkCorrect('STILL_WRONG')}
-                        disabled={markAsCorrectMutation.isPending}
-                        className="border-amber-200 text-amber-600 hover:bg-amber-50"
-                      >
-                        Still Wrong
-                      </Button>
-                      
-                      <Button 
-                        variant="outline"
-                        onClick={() => handleMarkCorrect('DIFFERENT_ERROR')}
-                        disabled={markAsCorrectMutation.isPending}
-                        className="border-orange-200 text-orange-600 hover:bg-orange-50"
-                      >
-                        Different Error
-                      </Button>
-                      
+                  <div className="mt-4 flex flex-col gap-3">
+                    <div className="flex justify-center">
                       <Button 
                         variant="default" 
                         onClick={() => handleMarkCorrect('CORRECTED')}
                         disabled={markAsCorrectMutation.isPending}
-                        className="bg-green-600 hover:bg-green-700"
+                        className="bg-green-600 hover:bg-green-700 text-sm"
+                        size="sm"
                       >
                         {markAsCorrectMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
                         ) : (
-                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
                         )}
-                        Mark as Correct
+                        Mark Correct
                       </Button>
                     </div>
                   </div>
@@ -485,7 +496,7 @@ const Annotation = () => {
               </Tabs>
             </AnimatedPanel>
             
-            <AnimatedPanel animation="slide-in-right" delay={200} className="lg:col-span-1 space-y-6">
+            <AnimatedPanel animation="slide-in-right" delay={100} className="lg:col-span-2 space-y-5">
               <ErrorSelection 
                 selectedErrorType={errorType}
                 onErrorTypeChange={(value) => setErrorType(value as ErrorType)}
@@ -498,21 +509,15 @@ const Annotation = () => {
                 onGuidanceTextChange={setGuidanceText}
                 onGuidanceTypeChange={(value) => setGuidanceType(value as GuidanceType)}
                 onSubmitGuidance={handleSubmitGuidance}
-                currentAttemptNumber={annotation.intervention_count + 1}
+                currentAttemptNumber={effectiveAnnotation.intervention_count + 1}
                 isSubmitting={submitGuidanceMutation.isPending}
                 className="guidance-form"
+                isRevisedView={currentTab === 'revised'}
               />
             </AnimatedPanel>
           </div>
         </div>
       </main>
-      
-      {showWalkthrough && (
-        <WalkthroughTooltip
-          steps={walkthroughSteps}
-          onComplete={handleWalkthroughComplete}
-        />
-      )}
     </div>
   );
 };

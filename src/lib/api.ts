@@ -103,6 +103,8 @@ export const startAnnotation = async (problemId: string) => {
 };
 
 export const submitGuidance = async (id: string, guidanceData: any) => {
+  console.log(`Submitting guidance for annotation ${id}:`, guidanceData);
+  
   const response = await fetch(`${API_URL}/annotations/${id}/guidance`, {
     method: 'POST',
     headers: {
@@ -110,10 +112,16 @@ export const submitGuidance = async (id: string, guidanceData: any) => {
     },
     body: JSON.stringify(guidanceData),
   });
+  
   if (!response.ok) {
-    throw new Error('Failed to submit guidance');
+    const errorText = await response.text();
+    console.error(`Error submitting guidance: Status ${response.status}`, errorText);
+    throw new Error(`Failed to submit guidance: ${response.status} ${errorText}`);
   }
-  return response.json();
+  
+  const responseData = await response.json();
+  console.log("Guidance submission response:", responseData);
+  return responseData;
 };
 
 export const markAsCorrect = async (id: string, outcome: string) => {

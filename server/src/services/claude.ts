@@ -8,6 +8,30 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || 'dummy-key',
 });
 
+// Define guidance level types
+export enum GuidanceLevel {
+  DIRECTIONAL = 'directional',
+  TARGETED = 'targeted',
+  COMPLETE_CORRECTION = 'complete_correction'
+}
+
+// Define structured guidance request interface
+export interface GuidanceRequest {
+  errorIndex: number;
+  guidanceContent: string;
+  guidanceLevel: GuidanceLevel;
+}
+
+// Standardized guidance templates
+const GUIDANCE_TEMPLATES = {
+  [GuidanceLevel.DIRECTIONAL]: 'Your solution has an error at Step {step}. {guidance}',
+  [GuidanceLevel.TARGETED]: 'You\'re still making an error in Step {step}. {guidance}',
+  [GuidanceLevel.COMPLETE_CORRECTION]: 'You\'re still making an error in Step {step}. Here is exactly what Step {step} should be: {guidance}'
+};
+
+// Standard completion phrase
+const COMPLETION_PHRASE = 'Revise your solution, keeping Steps 1 through {prevStep} exactly as they were, and updating Step {step} and any subsequent steps as needed. Present your complete revised solution with all steps.';
+
 // System prompt for initial problem solving
 const SYSTEM_PROMPT_INITIAL = `You are being asked to solve a complex math problem. Please provide a step-by-step solution with detailed explanations of your reasoning at each step. Define a "step" as one logical unit of the solution process (e.g., a single mathematical operation, a deduction or inference, application of a theorem or formula, a conclusion based on previous steps). Number each step clearly and show all work, including any formulas, calculations, or theorems you apply. Try to be as thorough as possible in your explanation.`;
 
@@ -22,7 +46,7 @@ const SYSTEM_PROMPT_REVISION = `You are being asked to revise your solution to a
 export const getInitialSolution = async (problemText: string): Promise<string[]> => {
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-3-opus-20240229',
+      model: 'claude-3-5-haiku-20241022',
       max_tokens: 4000,
       system: SYSTEM_PROMPT_INITIAL,
       messages: [
@@ -44,20 +68,40 @@ export const getInitialSolution = async (problemText: string): Promise<string[]>
 };
 
 /**
- * Get revised solution from Claude based on guidance
+ * Format the prompt for revised solution based on guidance level
+ * @param errorIndex The index of the error step
+ * @param guidance The guidance content
+ * @param guidanceLevel The guidance level
+ * @returns Formatted prompt prefix
+ */
+const formatGuidancePrompt = (errorIndex: number, guidance: string, guidanceLevel: GuidanceLevel): string => {
+  const stepNumber = errorIndex + 1;
+  
+  // Get the template for this guidance level
+  let template = GUIDANCE_TEMPLATES[guidanceLevel] || GUIDANCE_TEMPLATES[GuidanceLevel.DIRECTIONAL];
+  
+  // Fill in the template
+  let prompt = template.replace(/{step}/g, stepNumber.toString()).replace('{guidance}', guidance);
+  
+  // Add the completion phrase
+  prompt += ' ' + COMPLETION_PHRASE
+    .replace('{prevStep}', errorIndex.toString())
+    .replace('{step}', stepNumber.toString());
+    
+  return prompt;
+};
+
+/**
+ * Get revised solution from Claude using structured guidance (new method)
  * @param problemText The original problem
  * @param previousSteps The previous solution steps
- * @param errorIndex The index of the error step
- * @param guidance The guidance provided
- * @param attemptNumber Which attempt this is (determines guidance level)
+ * @param guidanceRequest The structured guidance request
  * @returns Array of revised solution steps
  */
-export const getRevisedSolution = async (
+export const getRevisedSolutionStructured = async (
   problemText: string,
   previousSteps: string[],
-  errorIndex: number,
-  guidance: string,
-  attemptNumber: number
+  guidanceRequest: GuidanceRequest
 ): Promise<string[]> => {
   try {
     // Format the previous steps as a numbered list
@@ -65,17 +109,14 @@ export const getRevisedSolution = async (
       .map((step, index) => `Step ${index + 1}: ${step}`)
       .join('\n');
 
-    // Determine guidance level based on attempt number
-    let promptPrefix;
-    if (attemptNumber === 1) {
-      promptPrefix = `Your solution has an error at Step ${errorIndex + 1}. ${guidance}`;
-    } else if (attemptNumber === 2) {
-      promptPrefix = `You're still making an error in Step ${errorIndex + 1}. ${guidance}`;
-    } else {
-      promptPrefix = `You're still making an error in Step ${errorIndex + 1}. Here is exactly what Step ${errorIndex + 1} should be: ${guidance}`;
-    }
+    // Create the user prompt with the appropriate guidance structure
+    const promptPrefix = formatGuidancePrompt(
+      guidanceRequest.errorIndex,
+      guidanceRequest.guidanceContent,
+      guidanceRequest.guidanceLevel
+    );
 
-    const userPrompt = `${promptPrefix} Revise your solution, keeping Steps 1 through ${errorIndex} exactly as they were, and updating Step ${errorIndex + 1} and any subsequent steps as needed. Present your complete revised solution with all steps.
+    const userPrompt = `${promptPrefix}
 
 Original problem: ${problemText}
 
@@ -83,7 +124,7 @@ Your previous solution:
 ${formattedPreviousSteps}`;
 
     const response = await anthropic.messages.create({
-      model: 'claude-3-opus-20240229',
+      model: 'claude-3-5-haiku-20241022',
       max_tokens: 4000,
       system: SYSTEM_PROMPT_REVISION,
       messages: [
@@ -100,6 +141,49 @@ ${formattedPreviousSteps}`;
     return steps;
   } catch (error) {
     console.error('Error getting revised solution from Claude:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get revised solution from Claude based on guidance (original method for backward compatibility)
+ * @param problemText The original problem
+ * @param previousSteps The previous solution steps
+ * @param errorIndex The index of the error step
+ * @param guidance The guidance provided
+ * @param attemptNumber Which attempt this is (determines guidance level)
+ * @returns Array of revised solution steps
+ */
+export const getRevisedSolution = async (
+  problemText: string,
+  previousSteps: string[],
+  errorIndex: number,
+  guidance: string,
+  attemptNumber: number
+): Promise<string[]> => {
+  try {
+    // Map attempt number to guidance level
+    let guidanceLevel: GuidanceLevel;
+    if (attemptNumber === 1) {
+      guidanceLevel = GuidanceLevel.DIRECTIONAL;
+    } else if (attemptNumber === 2) {
+      guidanceLevel = GuidanceLevel.TARGETED;
+    } else {
+      guidanceLevel = GuidanceLevel.COMPLETE_CORRECTION;
+    }
+
+    // Use the structured method internally
+    return await getRevisedSolutionStructured(
+      problemText,
+      previousSteps,
+      {
+        errorIndex,
+        guidanceContent: guidance,
+        guidanceLevel
+      }
+    );
+  } catch (error) {
+    console.error('Error in getRevisedSolution:', error);
     throw error;
   }
 };
@@ -164,5 +248,7 @@ const parseSteps = (content: string): string[] => {
 
 export default {
   getInitialSolution,
-  getRevisedSolution
+  getRevisedSolution,
+  getRevisedSolutionStructured,
+  GuidanceLevel
 };

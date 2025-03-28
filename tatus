@@ -1,0 +1,5 @@
+[33m27992e6[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Assistant checkpoint: Add debug logging to validate express-validator exports
+[33m75dbd1c[m Assistant checkpoint: Fix express-validator imports
+[33m137f39e[m Assistant checkpoint: Fix TypeScript compilation errors
+[33mc0ddd81[m Assistant checkpoint: Add debug logging to check Supabase configuration
+[33md75ffba[m Assistant checkpoint: Add missing supabase import in index.ts

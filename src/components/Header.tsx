@@ -19,10 +19,7 @@ const Header = ({ transparent = false, className }: HeaderProps) => {
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <Link to="/annotation" className="flex items-center space-x-2">
-          <span className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-white font-bold">
-            M
-          </span>
-          <span className="text-xl font-medium">Math Reasoning Guide</span>
+          <span className="text-xl font-medium">Math Annotation Tool Demo</span>
         </Link>
         
         <nav className="hidden md:flex items-center space-x-8">

@@ -240,6 +240,17 @@ export const problemService = {
 
 // Annotation service functions
 export const annotationService = {
+  // Helper function to safely parse JSON
+  safeParseJson: (jsonString: string | null, defaultValue: any[] = []) => {
+    if (!jsonString) return defaultValue;
+    try {
+      return JSON.parse(jsonString);
+    } catch (e) {
+      console.error(`Error parsing JSON: ${e.message}`);
+      return defaultValue;
+    }
+  },
+  
   // Get all annotations with optional filters
   getAnnotations: async (filters: any = {}) => {
     let query = supabase.from('annotations').select('*');
@@ -264,19 +275,21 @@ export const annotationService = {
     
     if (!data) return [];
     
-    // Convert JSON back to arrays for each annotation
+    // Convert JSON back to arrays for each annotation using the safe parse method
     return data.map(item => ({
       ...item,
-      initial_solution_steps: JSON.parse(item.initial_solution_steps || '[]'),
-      revised_solution_steps: JSON.parse(item.revised_solution_steps || '[]'),
-      revised_solution_steps_2: item.revised_solution_steps_2 ? JSON.parse(item.revised_solution_steps_2) : undefined,
-      revised_solution_steps_3: item.revised_solution_steps_3 ? JSON.parse(item.revised_solution_steps_3) : undefined,
-      final_solution_steps: item.final_solution_steps ? JSON.parse(item.final_solution_steps) : undefined
+      initial_solution_steps: annotationService.safeParseJson(item.initial_solution_steps, []),
+      revised_solution_steps: annotationService.safeParseJson(item.revised_solution_steps, []),
+      revised_solution_steps_2: item.revised_solution_steps_2 ? annotationService.safeParseJson(item.revised_solution_steps_2) : undefined,
+      revised_solution_steps_3: item.revised_solution_steps_3 ? annotationService.safeParseJson(item.revised_solution_steps_3) : undefined,
+      final_solution_steps: item.final_solution_steps ? annotationService.safeParseJson(item.final_solution_steps) : undefined
     }));
   },
   
   // Get a single annotation by ID
   getAnnotation: async (annotationId: string) => {
+    console.log(`Fetching annotation with ID: ${annotationId}`);
+    
     const { data, error } = await supabase
       .from('annotations')
       .select('*')
@@ -284,20 +297,54 @@ export const annotationService = {
       .single();
     
     if (error) {
+      console.error(`Error fetching annotation ${annotationId}:`, error);
       throw error;
     }
     
-    if (!data) return null;
+    if (!data) {
+      console.warn(`No annotation found with ID: ${annotationId}`);
+      return null;
+    }
     
-    // Convert JSON back to arrays for the response
-    return {
-      ...data,
-      initial_solution_steps: JSON.parse(data.initial_solution_steps || '[]'),
-      revised_solution_steps: JSON.parse(data.revised_solution_steps || '[]'),
-      revised_solution_steps_2: data.revised_solution_steps_2 ? JSON.parse(data.revised_solution_steps_2) : undefined,
-      revised_solution_steps_3: data.revised_solution_steps_3 ? JSON.parse(data.revised_solution_steps_3) : undefined,
-      final_solution_steps: data.final_solution_steps ? JSON.parse(data.final_solution_steps) : undefined
-    };
+    console.log(`Successfully fetched annotation ${annotationId}`, {
+      initialStepsJson: typeof data.initial_solution_steps,
+      hasRevisedSteps: !!data.revised_solution_steps,
+      hasRevisedSteps2: !!data.revised_solution_steps_2,
+      hasRevisedSteps3: !!data.revised_solution_steps_3,
+      interventionCount: data.intervention_count
+    });
+    
+    try {
+      // Parse each JSON field only once
+      const initialSolutionSteps = annotationService.safeParseJson(data.initial_solution_steps, []);
+      const revisedSolutionSteps = annotationService.safeParseJson(data.revised_solution_steps, []);
+      const revisedSolutionSteps2 = data.revised_solution_steps_2 ? annotationService.safeParseJson(data.revised_solution_steps_2) : undefined;
+      const revisedSolutionSteps3 = data.revised_solution_steps_3 ? annotationService.safeParseJson(data.revised_solution_steps_3) : undefined;
+      const finalSolutionSteps = data.final_solution_steps ? annotationService.safeParseJson(data.final_solution_steps) : undefined;
+      
+      // Create the result using parsed values
+      const result = {
+        ...data,
+        initial_solution_steps: initialSolutionSteps,
+        revised_solution_steps: revisedSolutionSteps,
+        revised_solution_steps_2: revisedSolutionSteps2,
+        revised_solution_steps_3: revisedSolutionSteps3,
+        final_solution_steps: finalSolutionSteps
+      };
+      
+      console.log(`Parsed annotation data for ${annotationId}:`, {
+        initialStepsCount: result.initial_solution_steps?.length,
+        revisedStepsCount: result.revised_solution_steps?.length,
+        revisedSteps2Count: result.revised_solution_steps_2?.length,
+        revisedSteps3Count: result.revised_solution_steps_3?.length,
+        interventionCount: result.intervention_count
+      });
+      
+      return result;
+    } catch (e) {
+      console.error(`Error parsing JSON in annotation ${annotationId}:`, e);
+      throw new Error(`Error parsing annotation data: ${e.message}`);
+    }
   },
   
   // Create a new annotation
@@ -322,41 +369,183 @@ export const annotationService = {
       throw error;
     }
     
-    // Convert JSON back to arrays for the response
+    // Convert JSON back to arrays for the response using our helper function
     return {
       ...data,
-      initial_solution_steps: JSON.parse(data.initial_solution_steps || '[]'),
-      revised_solution_steps: JSON.parse(data.revised_solution_steps || '[]'),
-      revised_solution_steps_2: data.revised_solution_steps_2 ? JSON.parse(data.revised_solution_steps_2) : undefined,
-      revised_solution_steps_3: data.revised_solution_steps_3 ? JSON.parse(data.revised_solution_steps_3) : undefined,
-      final_solution_steps: data.final_solution_steps ? JSON.parse(data.final_solution_steps) : undefined
+      initial_solution_steps: annotationService.safeParseJson(data.initial_solution_steps, []),
+      revised_solution_steps: annotationService.safeParseJson(data.revised_solution_steps, []),
+      revised_solution_steps_2: data.revised_solution_steps_2 ? annotationService.safeParseJson(data.revised_solution_steps_2) : undefined,
+      revised_solution_steps_3: data.revised_solution_steps_3 ? annotationService.safeParseJson(data.revised_solution_steps_3) : undefined,
+      final_solution_steps: data.final_solution_steps ? annotationService.safeParseJson(data.final_solution_steps) : undefined
     };
   },
   
   // Update an annotation
   updateAnnotation: async (annotationId: string, updateData: Partial<Annotation>) => {
+    console.log("updateAnnotation called with id:", annotationId);
+    console.log("Update data received:", {
+      hasInitialSteps: !!updateData.initial_solution_steps,
+      hasRevisedSteps: !!updateData.revised_solution_steps,
+      hasRevisedSteps2: !!updateData.revised_solution_steps_2,
+      hasRevisedSteps3: !!updateData.revised_solution_steps_3,
+      interventionCount: updateData.intervention_count
+    });
+    
     // Convert string arrays to JSON for Supabase
     const formattedData: any = { ...updateData };
     
-    if (formattedData.initial_solution_steps) {
+    // Ensure consistent array handling for initial_solution_steps
+    if (formattedData.initial_solution_steps !== undefined) {
+      console.log("Processing initial_solution_steps:", {
+        type: typeof formattedData.initial_solution_steps,
+        isArray: Array.isArray(formattedData.initial_solution_steps),
+        length: Array.isArray(formattedData.initial_solution_steps) ? formattedData.initial_solution_steps.length : 'N/A'
+      });
+      
+      if (!Array.isArray(formattedData.initial_solution_steps)) {
+        try {
+          // If it's a string, try to parse it
+          if (typeof formattedData.initial_solution_steps === 'string') {
+            formattedData.initial_solution_steps = JSON.parse(formattedData.initial_solution_steps);
+            console.log("Parsed initial_solution_steps from string to array");
+          }
+          // Ensure it's an array after parsing
+          if (!Array.isArray(formattedData.initial_solution_steps)) {
+            console.warn("initial_solution_steps is not an array after parsing, resetting to empty array");
+            formattedData.initial_solution_steps = [];
+          }
+        } catch (e) {
+          console.error("Error parsing initial_solution_steps:", e);
+          formattedData.initial_solution_steps = [];
+        }
+      }
+      
       formattedData.initial_solution_steps = JSON.stringify(formattedData.initial_solution_steps);
     }
     
-    if (formattedData.revised_solution_steps) {
+    // Ensure consistent array handling for revised_solution_steps
+    if (formattedData.revised_solution_steps !== undefined) {
+      console.log("Processing revised_solution_steps:", {
+        type: typeof formattedData.revised_solution_steps,
+        isArray: Array.isArray(formattedData.revised_solution_steps),
+        length: Array.isArray(formattedData.revised_solution_steps) ? formattedData.revised_solution_steps.length : 'N/A'
+      });
+      
+      if (!Array.isArray(formattedData.revised_solution_steps)) {
+        try {
+          // If it's a string, try to parse it
+          if (typeof formattedData.revised_solution_steps === 'string') {
+            formattedData.revised_solution_steps = JSON.parse(formattedData.revised_solution_steps);
+            console.log("Parsed revised_solution_steps from string to array");
+          }
+          // Ensure it's an array after parsing
+          if (!Array.isArray(formattedData.revised_solution_steps)) {
+            console.warn("revised_solution_steps is not an array after parsing, resetting to empty array");
+            formattedData.revised_solution_steps = [];
+          }
+        } catch (e) {
+          console.error("Error parsing revised_solution_steps:", e);
+          formattedData.revised_solution_steps = [];
+        }
+      }
+      
       formattedData.revised_solution_steps = JSON.stringify(formattedData.revised_solution_steps);
     }
     
-    if (formattedData.revised_solution_steps_2) {
+    // Ensure consistent array handling for revised_solution_steps_2
+    if (formattedData.revised_solution_steps_2 !== undefined) {
+      console.log("Processing revised_solution_steps_2:", {
+        type: typeof formattedData.revised_solution_steps_2,
+        isArray: Array.isArray(formattedData.revised_solution_steps_2),
+        length: Array.isArray(formattedData.revised_solution_steps_2) ? formattedData.revised_solution_steps_2.length : 'N/A'
+      });
+      
+      if (!Array.isArray(formattedData.revised_solution_steps_2)) {
+        try {
+          // If it's a string, try to parse it
+          if (typeof formattedData.revised_solution_steps_2 === 'string') {
+            formattedData.revised_solution_steps_2 = JSON.parse(formattedData.revised_solution_steps_2);
+            console.log("Parsed revised_solution_steps_2 from string to array");
+          }
+          // Ensure it's an array after parsing
+          if (!Array.isArray(formattedData.revised_solution_steps_2)) {
+            console.warn("revised_solution_steps_2 is not an array after parsing, resetting to empty array");
+            formattedData.revised_solution_steps_2 = [];
+          }
+        } catch (e) {
+          console.error("Error parsing revised_solution_steps_2:", e);
+          formattedData.revised_solution_steps_2 = [];
+        }
+      }
+      
       formattedData.revised_solution_steps_2 = JSON.stringify(formattedData.revised_solution_steps_2);
     }
     
-    if (formattedData.revised_solution_steps_3) {
+    // Ensure consistent array handling for revised_solution_steps_3
+    if (formattedData.revised_solution_steps_3 !== undefined) {
+      console.log("Processing revised_solution_steps_3:", {
+        type: typeof formattedData.revised_solution_steps_3,
+        isArray: Array.isArray(formattedData.revised_solution_steps_3),
+        length: Array.isArray(formattedData.revised_solution_steps_3) ? formattedData.revised_solution_steps_3.length : 'N/A'
+      });
+      
+      if (!Array.isArray(formattedData.revised_solution_steps_3)) {
+        try {
+          // If it's a string, try to parse it
+          if (typeof formattedData.revised_solution_steps_3 === 'string') {
+            formattedData.revised_solution_steps_3 = JSON.parse(formattedData.revised_solution_steps_3);
+            console.log("Parsed revised_solution_steps_3 from string to array");
+          }
+          // Ensure it's an array after parsing
+          if (!Array.isArray(formattedData.revised_solution_steps_3)) {
+            console.warn("revised_solution_steps_3 is not an array after parsing, resetting to empty array");
+            formattedData.revised_solution_steps_3 = [];
+          }
+        } catch (e) {
+          console.error("Error parsing revised_solution_steps_3:", e);
+          formattedData.revised_solution_steps_3 = [];
+        }
+      }
+      
       formattedData.revised_solution_steps_3 = JSON.stringify(formattedData.revised_solution_steps_3);
     }
     
-    if (formattedData.final_solution_steps) {
+    // Ensure consistent array handling for final_solution_steps
+    if (formattedData.final_solution_steps !== undefined) {
+      console.log("Processing final_solution_steps:", {
+        type: typeof formattedData.final_solution_steps,
+        isArray: Array.isArray(formattedData.final_solution_steps),
+        length: Array.isArray(formattedData.final_solution_steps) ? formattedData.final_solution_steps.length : 'N/A'
+      });
+      
+      if (!Array.isArray(formattedData.final_solution_steps)) {
+        try {
+          // If it's a string, try to parse it
+          if (typeof formattedData.final_solution_steps === 'string') {
+            formattedData.final_solution_steps = JSON.parse(formattedData.final_solution_steps);
+            console.log("Parsed final_solution_steps from string to array");
+          }
+          // Ensure it's an array after parsing
+          if (!Array.isArray(formattedData.final_solution_steps)) {
+            console.warn("final_solution_steps is not an array after parsing, resetting to empty array");
+            formattedData.final_solution_steps = [];
+          }
+        } catch (e) {
+          console.error("Error parsing final_solution_steps:", e);
+          formattedData.final_solution_steps = [];
+        }
+      }
+      
       formattedData.final_solution_steps = JSON.stringify(formattedData.final_solution_steps);
     }
+
+    console.log("Final formatted data for update:", {
+      hasInitialSteps: !!formattedData.initial_solution_steps,
+      hasRevisedSteps: !!formattedData.revised_solution_steps,
+      hasRevisedSteps2: !!formattedData.revised_solution_steps_2,
+      hasRevisedSteps3: !!formattedData.revised_solution_steps_3,
+      interventionCount: formattedData.intervention_count
+    });
 
     const { data, error } = await supabase
       .from('annotations')
@@ -366,11 +555,14 @@ export const annotationService = {
       .single();
     
     if (error) {
+      console.error("Error updating annotation:", error);
       throw error;
     }
     
+    console.log("Annotation updated successfully in database, converting response");
+    
     // Convert JSON back to arrays for the response
-    return {
+    const result = {
       ...data,
       initial_solution_steps: JSON.parse(data.initial_solution_steps || '[]'),
       revised_solution_steps: JSON.parse(data.revised_solution_steps || '[]'),
@@ -378,6 +570,16 @@ export const annotationService = {
       revised_solution_steps_3: data.revised_solution_steps_3 ? JSON.parse(data.revised_solution_steps_3) : undefined,
       final_solution_steps: data.final_solution_steps ? JSON.parse(data.final_solution_steps) : undefined
     };
+    
+    console.log("Parsed response:", {
+      initialStepsCount: result.initial_solution_steps?.length,
+      revisedStepsCount: result.revised_solution_steps?.length,
+      revisedSteps2Count: result.revised_solution_steps_2?.length,
+      revisedSteps3Count: result.revised_solution_steps_3?.length,
+      interventionCount: result.intervention_count
+    });
+    
+    return result;
   }
 };
 

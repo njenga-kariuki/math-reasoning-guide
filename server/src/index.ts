@@ -4,6 +4,8 @@ import { config as dotenvConfig } from 'dotenv';
 import { initSupabase, supabase } from './config/supabase';
 import problemRoutes from './routes/problemRoutes';
 import annotationRoutes from './routes/annotationRoutes';
+import path from 'path';
+import fs from 'fs';
 
 // Load environment variables
 dotenvConfig();
@@ -22,17 +24,9 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Routes
+// API Routes
 app.use('/api/problems', problemRoutes);
 app.use('/api/annotations', annotationRoutes);
-
-// Root route
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Math Annotation Tool API',
-    version: '1.0.0'
-  });
-});
 
 // Test route to check database connectivity
 app.get('/api/test', async (req, res) => {
@@ -75,6 +69,79 @@ app.get('/api/test', async (req, res) => {
     });
   }
 });
+
+// Debug endpoint to help diagnose path issues
+app.get('/api/debug', (req, res) => {
+  const possiblePaths = [
+    path.resolve(__dirname, '../../../dist'),
+    path.resolve(__dirname, '../../dist'),
+    path.resolve(__dirname, '../dist'),
+    path.resolve(__dirname, './dist'),
+    path.resolve(process.cwd(), 'dist')
+  ];
+
+  const results = possiblePaths.map(p => ({
+    path: p,
+    exists: fs.existsSync(p),
+    isDirectory: fs.existsSync(p) ? fs.lstatSync(p).isDirectory() : false,
+    contents: fs.existsSync(p) && fs.lstatSync(p).isDirectory() ? fs.readdirSync(p) : []
+  }));
+
+  res.json({
+    currentDir: __dirname,
+    processCwd: process.cwd(),
+    possiblePaths: results
+  });
+});
+
+// Try multiple possible paths for the frontend build
+const possibleBuildPaths = [
+  path.resolve(__dirname, '../../../dist'), // If server is in /server/dist/
+  path.resolve(__dirname, '../../dist'),    // If server is in /server/
+  path.resolve(process.cwd(), 'dist')       // From current working directory
+];
+
+let buildPath = '';
+for (const p of possibleBuildPaths) {
+  if (fs.existsSync(p) && fs.lstatSync(p).isDirectory()) {
+    buildPath = p;
+    break;
+  }
+}
+
+if (buildPath) {
+  console.log('Found frontend build at:', buildPath);
+  // Serve static files from the React app build directory
+  app.use(express.static(buildPath));
+
+  // For any other request, send the React app's index.html
+  app.get('*', (req, res) => {
+    // Skip API routes
+    if (req.path.startsWith('/api/')) {
+      return res.status(404).json({
+        success: false,
+        error: 'API endpoint not found'
+      });
+    }
+    
+    const indexPath = path.join(buildPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    } else {
+      return res.status(404).send('Frontend build not found. Please make sure the frontend has been built.');
+    }
+  });
+} else {
+  console.warn('Frontend build directory not found! Serving API only.');
+  // Fallback for the root route if no frontend is found
+  app.get('/', (req, res) => {
+    res.json({
+      message: 'Math Annotation Tool API (Frontend not found)',
+      version: '1.0.0',
+      note: 'The frontend build was not found. Please make sure it is built and properly located.'
+    });
+  });
+}
 
 // Start server
 app.listen(Number(PORT), '0.0.0.0', () => {
