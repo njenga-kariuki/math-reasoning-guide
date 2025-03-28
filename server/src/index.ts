@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { initSupabase, supabase } from './config/supabase';
+import { initSupabase } from './config/supabase';
 import problemRoutes from './routes/problemRoutes';
 import annotationRoutes from './routes/annotationRoutes';
 
@@ -16,7 +16,7 @@ dotenv.config();
 
 // Initialize express
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8080;
 
 // Middleware
 app.use(cors());
@@ -38,7 +38,7 @@ app.get('/', (req, res) => {
 app.get('/api/test', async (req, res) => {
   try {
     const { data, error } = await supabase.from('problems').select('count');
-    
+
     if (error) {
       console.error('Test endpoint - Supabase error:', error);
       return res.status(500).json({ 
@@ -47,10 +47,10 @@ app.get('/api/test', async (req, res) => {
         details: error 
       });
     }
-    
+
     // Get all problems to check if we have data
     const { data: problems, error: problemsError } = await supabase.from('problems').select('*');
-    
+
     if (problemsError) {
       console.error('Test endpoint - Problems query error:', problemsError);
       return res.status(500).json({ 
@@ -59,7 +59,7 @@ app.get('/api/test', async (req, res) => {
         details: problemsError 
       });
     }
-    
+
     res.json({
       success: true,
       message: 'Database connection successful',
@@ -77,7 +77,7 @@ app.get('/api/test', async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
 
