@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { ValidationChain, validationResult } from 'express-validator';
+import { body } from 'express-validator';
+import validationResult from 'express-validator';
 import { annotationService, problemService } from '../services/supabaseService';
 import claudeService from '../services/claude';
 
