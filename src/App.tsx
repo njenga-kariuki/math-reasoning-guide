@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import Annotation from "./pages/Annotation";
+import ProblemLibrary from "./pages/ProblemLibrary";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -17,9 +18,10 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/annotation" replace />} />
+          <Route path="/" element={<Navigate to="/guide" replace />} />
           <Route path="/guide" element={<Index />} />
           <Route path="/annotation" element={<Annotation />} />
+          <Route path="/problems" element={<ProblemLibrary />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

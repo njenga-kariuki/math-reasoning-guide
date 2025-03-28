@@ -6,25 +6,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-
-// Guidance types as defined in the specification
-const GUIDANCE_TYPES = [
-  { value: 'calculation_correction', label: 'Calculation Correction' },
-  { value: 'concept_clarification', label: 'Concept Clarification' },
-  { value: 'approach_redirection', label: 'Approach Redirection' },
-  { value: 'logical_flow_correction', label: 'Logical Flow Correction' },
-  { value: 'domain_reminder', label: 'Domain Reminder' },
-  { value: 'formula_clarification', label: 'Formula Clarification' },
-  { value: 'direct_correction', label: 'Direct Correction' }
-];
+import { Loader2 } from 'lucide-react';
+import { GuidanceType, GUIDANCE_TYPES } from '@/types';
 
 interface GuidanceFormProps {
   guidanceText: string;
-  selectedGuidanceType: string | null;
+  selectedGuidanceType: GuidanceType | null;
   onGuidanceTextChange: (value: string) => void;
   onGuidanceTypeChange: (value: string) => void;
   onSubmitGuidance: () => void;
   currentAttemptNumber: number;
+  isSubmitting?: boolean;
   className?: string;
 }
 
@@ -35,6 +27,7 @@ const GuidanceForm = ({
   onGuidanceTypeChange, 
   onSubmitGuidance,
   currentAttemptNumber,
+  isSubmitting = false,
   className 
 }: GuidanceFormProps) => {
   
@@ -115,11 +108,18 @@ const GuidanceForm = ({
       <CardFooter className="px-4 pb-4 pt-0">
         <Button 
           onClick={onSubmitGuidance} 
-          disabled={!guidanceText.trim() || !selectedGuidanceType}
+          disabled={!guidanceText.trim() || !selectedGuidanceType || isSubmitting}
           className="w-full py-5 text-base font-medium"
           size="lg"
         >
-          Submit Guidance
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Submitting...
+            </>
+          ) : (
+            'Submit Guidance'
+          )}
         </Button>
       </CardFooter>
     </Card>

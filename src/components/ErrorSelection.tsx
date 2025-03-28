@@ -4,21 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
-
-// Error types as defined in the specification
-const ERROR_TYPES = [
-  { value: 'calculation_error', label: 'Calculation Error' },
-  { value: 'conceptual_misunderstanding', label: 'Conceptual Misunderstanding' },
-  { value: 'approach_selection_error', label: 'Approach Selection Error' },
-  { value: 'logical_reasoning_error', label: 'Logical Reasoning Error' },
-  { value: 'domain_constraint_error', label: 'Domain Constraint Error' },
-  { value: 'formula_application_error', label: 'Formula Application Error' },
-  { value: 'notation_error', label: 'Notation Error' },
-  { value: 'other', label: 'Other' }
-];
+import { ErrorType, ERROR_TYPES } from '@/types';
 
 interface ErrorSelectionProps {
-  selectedErrorType: string | null;
+  selectedErrorType: ErrorType | null;
   onErrorTypeChange: (value: string) => void;
   className?: string;
 }

@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Header from '@/components/Header';
 import ProblemCard from '@/components/ProblemCard';
 import SolutionSteps from '@/components/SolutionSteps';
@@ -11,37 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/use-toast';
-import { HelpCircle } from 'lucide-react';
-
-// Sample data for demonstration
-const sampleProblem = {
-  id: "CALC-LIM-001",
-  category: "Calculus",
-  difficulty: "Advanced",
-  text: "Solve the differential equation y'' + 4y' + 4y = 0 with initial conditions y(0) = 1 and y'(0) = -2.",
-};
-
-const sampleInitialSteps = [
-  "Step 1: I'll start by finding the characteristic equation of this homogeneous second-order differential equation. The characteristic equation is r² + 4r + 4 = 0.",
-  "Step 2: Factoring this equation: (r + 2)² = 0, which gives us r = -2 with multiplicity 2.",
-  "Step 3: When we have a repeated root in the characteristic equation, the general solution takes the form y = (c₁ + c₂x)e^(-2x).",
-  "Step 4: Now I'll apply the initial conditions. We have y(0) = 1, so: y(0) = (c₁ + c₂·0)e^0 = c₁ = 1.",
-  "Step 5: For the second condition, I need y'(0) = -2. The derivative of y is y' = -2(c₁ + c₂x)e^(-2x) + c₂e^(-2x).",
-  "Step 6: Simplifying: y' = c₂e^(-2x) - 2c₁e^(-2x) - 2c₂xe^(-2x).",
-  "Step 7: Evaluating at x = 0: y'(0) = c₂ - 2c₁ = -2."
-];
-
-const sampleRevisedSteps = [
-  "Step 1: I'll start by finding the characteristic equation of this homogeneous second-order differential equation. The characteristic equation is r² + 4r + 4 = 0.",
-  "Step 2: Factoring this equation: (r + 2)² = 0, which gives us r = -2 with multiplicity 2.",
-  "Step 3: When we have a repeated root in the characteristic equation, the general solution takes the form y = (c₁ + c₂x)e^(-2x).",
-  "Step 4: Now I'll apply the initial conditions. We have y(0) = 1, so: y(0) = (c₁ + c₂·0)e^0 = c₁ = 1.",
-  "Step 5 (revised): For the second condition, I need y'(0) = -2. Using the product rule to differentiate y = (c₁ + c₂x)e^(-2x): y' = (c₁ + c₂x)·(-2e^(-2x)) + (c₂)·(e^(-2x)).",
-  "Step 6: Simplifying: y' = -2(c₁ + c₂x)e^(-2x) + c₂e^(-2x) = c₂e^(-2x) - 2c₁e^(-2x) - 2c₂xe^(-2x).",
-  "Step 7: Evaluating at x = 0: y'(0) = c₂ - 2c₁ = c₂ - 2(1) = c₂ - 2 = -2.",
-  "Step 8: Solving for c₂: c₂ = 0.",
-  "Step 9: Therefore, the particular solution is y = e^(-2x)."
-];
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Loader2, HelpCircle, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import * as api from '@/lib/api';
+import { Problem, Annotation as AnnotationType, ErrorType, GuidanceType, RevisionOutcome, GUIDANCE_TYPES, ERROR_TYPES } from '@/types';
 
 const walkthroughSteps = [
   {
@@ -72,20 +45,164 @@ const walkthroughSteps = [
 ];
 
 const Annotation = () => {
+  const queryClient = useQueryClient();
+  
+  // State for the annotation process
   const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null);
-  const [errorType, setErrorType] = useState<string | null>(null);
-  const [guidanceType, setGuidanceType] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<ErrorType | null>(null);
+  const [guidanceType, setGuidanceType] = useState<GuidanceType | null>(null);
   const [guidanceText, setGuidanceText] = useState('');
   const [currentTab, setCurrentTab] = useState('initial');
-  const [attemptNumber, setAttemptNumber] = useState(1);
-  const [isRevised, setIsRevised] = useState(false);
-  const [showWalkthrough, setShowWalkthrough] = useState(true);
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
+  
+  // Get a random problem to annotate - but don't fetch automatically
+  const { 
+    data: problemData, 
+    isLoading: isLoadingProblem,
+    error: problemError,
+    refetch: refetchProblem
+  } = useQuery({
+    queryKey: ['randomProblem'],
+    queryFn: () => api.fetchRandomProblem(),
+    refetchOnWindowFocus: false,
+    enabled: false, // Don't fetch automatically
+    retry: 3, // Retry failed requests 3 times
+  });
+  
+  // Start annotation when a problem is loaded
+  const { 
+    data: annotationData, 
+    isLoading: isLoadingAnnotation,
+    error: annotationError,
+    refetch: refetchAnnotation
+  } = useQuery({
+    queryKey: ['annotation', problemData?.data?.problem_id],
+    queryFn: () => api.startAnnotation(problemData?.data?.problem_id),
+    enabled: !!problemData?.data?.problem_id,
+    refetchOnWindowFocus: false,
+    retry: 3, // Retry failed requests 3 times
+  });
+  
+  // Fetch a problem when the component mounts
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        await refetchProblem();
+      } catch (error) {
+        console.error('Error fetching problem:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch a problem. Please try again.",
+          variant: "destructive"
+        });
+      }
+    };
+    
+    fetchData();
+  }, [refetchProblem]);
+  
+  // Get the current annotation
+  const annotation = annotationData?.data as AnnotationType | undefined;
+  const problem = problemData?.data as Problem | undefined;
+  
+  // Determine which solution steps to show based on the intervention count
+  const getStepsToShow = () => {
+    if (!annotation) return [];
+    
+    if (currentTab === 'initial') {
+      return annotation.initial_solution_steps;
+    } else if (annotation.intervention_count === 1) {
+      return annotation.revised_solution_steps;
+    } else if (annotation.intervention_count === 2) {
+      return annotation.revised_solution_steps_2 || [];
+    } else {
+      return annotation.revised_solution_steps_3 || [];
+    }
+  };
+  
+  // Determine if the solution has been revised
+  const isRevised = annotation?.revised_solution_steps?.length > 0;
+  
+  // Submit guidance mutation
+  const submitGuidanceMutation = useMutation({
+    mutationFn: (guidanceData: any) => {
+      return api.submitGuidance(annotation?.id || '', guidanceData);
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['annotation'] });
+      setCurrentTab('revised');
+      toast({
+        title: "Guidance Submitted",
+        description: "The AI has revised its solution based on your guidance"
+      });
+      // Reset form
+      setSelectedStepIndex(null);
+      setErrorType(null);
+      setGuidanceType(null);
+      setGuidanceText('');
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to submit guidance. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Mark as correct mutation
+  const markAsCorrectMutation = useMutation({
+    mutationFn: (outcome: RevisionOutcome) => {
+      return api.markAsCorrect(annotation?.id || '', outcome);
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['annotation'] });
+      toast({
+        title: "Success",
+        description: "Solution marked as correct and annotation finalized",
+        variant: "default"
+      });
+      // Refresh to get a new problem
+      window.location.reload();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to mark as correct. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Discard problem mutation
+  const discardProblemMutation = useMutation({
+    mutationFn: (problemId: string) => {
+      return api.discardAnnotationProblem(problemId);
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['randomProblem'] });
+      toast({
+        title: "Problem Discarded",
+        description: "The problem has been discarded and a new one will be loaded."
+      });
+      // Refresh to get a new problem
+      window.location.reload();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to discard problem. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
   
   // Load walkthrough preference from localStorage
   useEffect(() => {
     const hasSeenWalkthrough = localStorage.getItem('hasSeenWalkthrough');
-    if (hasSeenWalkthrough) {
-      setShowWalkthrough(false);
+    if (!hasSeenWalkthrough) {
+      setShowWalkthrough(true);
     }
   }, []);
   
@@ -121,35 +238,117 @@ const Annotation = () => {
       return;
     }
     
-    // In a real app, this would send the guidance to the API
-    console.log("Submitting guidance:", {
-      errorIndex: selectedStepIndex,
-      errorStepContent: sampleInitialSteps[selectedStepIndex],
-      errorType,
-      guidanceProvided: guidanceText,
-      guidanceType
-    });
+    const guidanceData = {
+      error_index: selectedStepIndex,
+      error_step_content: getStepsToShow()[selectedStepIndex],
+      error_type: errorType,
+      guidance_provided: guidanceText,
+      guidance_type: guidanceType
+    };
     
-    // Mock the revised solution response
-    setTimeout(() => {
-      setIsRevised(true);
-      setCurrentTab('revised');
-      setAttemptNumber(prev => prev + 1);
-      toast({
-        title: "Guidance Submitted",
-        description: "The AI has revised its solution based on your guidance"
-      });
-    }, 1500);
+    submitGuidanceMutation.mutate(guidanceData);
   };
   
-  const handleMarkCorrect = () => {
-    // In a real app, this would finalize the annotation
-    toast({
-      title: "Success",
-      description: "Solution marked as correct and annotation finalized",
-      variant: "default"
-    });
+  const handleMarkCorrect = (outcome: RevisionOutcome) => {
+    markAsCorrectMutation.mutate(outcome);
   };
+  
+  const handleDiscardProblem = () => {
+    if (problem?.problem_id) {
+      discardProblemMutation.mutate(problem.problem_id);
+    }
+  };
+  
+  // Loading state
+  if (isLoadingProblem || isLoadingAnnotation) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-primary" />
+          <h2 className="text-2xl font-medium">Loading...</h2>
+          <p className="text-gray-600 mt-2">
+            Preparing the math problem and initial solution.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Error state
+  if (problemError || annotationError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader className="bg-red-50">
+            <CardTitle className="text-red-700 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Error Loading Data
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <p className="mb-4">
+              {problemError ? `Problem error: ${problemError.message}` : ''}
+              {annotationError ? `Annotation error: ${annotationError.message}` : ''}
+              {!problemError && !annotationError ? 'There was an error loading the annotation data.' : ''}
+              {' Please try again.'}
+            </p>
+            <Button 
+              onClick={() => {
+                if (problemError) {
+                  refetchProblem();
+                } else if (annotationError && problemData?.data?.problem_id) {
+                  refetchAnnotation();
+                } else {
+                  window.location.reload();
+                }
+              }}
+              className="w-full"
+            >
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  // If no problem is found
+  if (!problem || !annotation) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader className="bg-amber-50">
+            <CardTitle className="text-amber-700 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              No Problems Available
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <p className="mb-4">
+              {problemError?.message?.includes('No unannotated problems found') 
+                ? 'All problems have been annotated. Please reset some problems or add new ones to continue.'
+                : 'There are no unannotated problems available. Please add more problems to the library.'}
+            </p>
+            <div className="flex flex-col gap-3">
+              <Button 
+                onClick={() => window.location.href = '/problems'}
+                className="w-full"
+                variant="outline"
+              >
+                Go to Problem Library
+              </Button>
+              <Button 
+                onClick={() => window.location.href = '/guide'}
+                className="w-full"
+              >
+                Go to Guide
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 pb-16">
@@ -164,24 +363,56 @@ const Annotation = () => {
                 Review solutions, identify errors, and provide guidance to improve mathematical reasoning.
               </p>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="flex items-center gap-1"
-              onClick={handleRestartWalkthrough}
-            >
-              <HelpCircle className="h-4 w-4" />
-              Help
-            </Button>
+            <div className="flex gap-2">
+              <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex items-center gap-1 border-red-200 text-red-600 hover:bg-red-50"
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                    Discard Problem
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure you want to discard this problem?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. The problem will be marked as discarded and you will be assigned a new problem.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleDiscardProblem}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Discard Problem
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center gap-1"
+                onClick={handleRestartWalkthrough}
+              >
+                <HelpCircle className="h-4 w-4" />
+                Help
+              </Button>
+            </div>
           </AnimatedPanel>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <AnimatedPanel animation="slide-in-up" className="lg:col-span-3 problem-card">
               <ProblemCard 
-                id={sampleProblem.id}
-                category={sampleProblem.category}
-                difficulty={sampleProblem.difficulty}
-                text={sampleProblem.text}
+                id={problem.problem_id}
+                category={problem.problem_category}
+                difficulty={problem.difficulty_level}
+                text={problem.problem_text}
               />
             </AnimatedPanel>
             
@@ -194,7 +425,7 @@ const Annotation = () => {
                 
                 <TabsContent value="initial" className="mt-0">
                   <SolutionSteps
-                    steps={sampleInitialSteps}
+                    steps={annotation.initial_solution_steps}
                     title="Initial Solution"
                     selectedStepIndex={selectedStepIndex}
                     onStepSelect={setSelectedStepIndex}
@@ -203,78 +434,82 @@ const Annotation = () => {
                 
                 <TabsContent value="revised" className="mt-0">
                   <SolutionSteps
-                    steps={sampleRevisedSteps}
-                    title="Revised Solution"
+                    steps={getStepsToShow()}
+                    title={`Revised Solution (Attempt ${annotation.intervention_count})`}
                     selectedStepIndex={null}
-                    onStepSelect={null}
                   />
                   
-                  <div className="mt-4 flex flex-col sm:flex-row gap-3">
-                    <Button onClick={handleMarkCorrect} className="w-full sm:w-auto">
-                      Mark as Correct
+                  <div className="mt-6 flex justify-between">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setCurrentTab('initial')}
+                    >
+                      View Original Solution
                     </Button>
-                    <Button variant="outline" className="w-full sm:w-auto">
-                      Still Incorrect
-                    </Button>
+                    
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline"
+                        onClick={() => handleMarkCorrect('STILL_WRONG')}
+                        disabled={markAsCorrectMutation.isPending}
+                        className="border-amber-200 text-amber-600 hover:bg-amber-50"
+                      >
+                        Still Wrong
+                      </Button>
+                      
+                      <Button 
+                        variant="outline"
+                        onClick={() => handleMarkCorrect('DIFFERENT_ERROR')}
+                        disabled={markAsCorrectMutation.isPending}
+                        className="border-orange-200 text-orange-600 hover:bg-orange-50"
+                      >
+                        Different Error
+                      </Button>
+                      
+                      <Button 
+                        variant="default" 
+                        onClick={() => handleMarkCorrect('CORRECTED')}
+                        disabled={markAsCorrectMutation.isPending}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        {markAsCorrectMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4 mr-2" />
+                        )}
+                        Mark as Correct
+                      </Button>
+                    </div>
                   </div>
                 </TabsContent>
               </Tabs>
             </AnimatedPanel>
             
-            <AnimatedPanel animation="slide-in-right" delay={200} className="space-y-6">
-              <div className="error-selection">
-                <ErrorSelection 
-                  selectedErrorType={errorType}
-                  onErrorTypeChange={setErrorType}
-                />
-              </div>
+            <AnimatedPanel animation="slide-in-right" delay={200} className="lg:col-span-1 space-y-6">
+              <ErrorSelection 
+                selectedErrorType={errorType}
+                onErrorTypeChange={(value) => setErrorType(value as ErrorType)}
+                className="error-selection"
+              />
               
-              <div className="guidance-form">
-                <GuidanceForm
-                  guidanceText={guidanceText}
-                  selectedGuidanceType={guidanceType}
-                  onGuidanceTextChange={setGuidanceText}
-                  onGuidanceTypeChange={setGuidanceType}
-                  onSubmitGuidance={handleSubmitGuidance}
-                  currentAttemptNumber={attemptNumber}
-                />
-              </div>
-              
-              <Card className="shadow-md">
-                <CardHeader className="bg-secondary/50 p-4">
-                  <CardTitle className="text-xl">Annotation Progress</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">Current Attempt</span>
-                      <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded font-medium">
-                        {attemptNumber}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">Selected Step</span>
-                      <span className="text-sm">
-                        {selectedStepIndex !== null ? `Step ${selectedStepIndex + 1}` : 'None'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">Status</span>
-                      <span className="text-sm bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-medium">
-                        {isRevised ? 'Revision Pending Review' : 'Initial Review'}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <GuidanceForm 
+                guidanceText={guidanceText}
+                selectedGuidanceType={guidanceType}
+                onGuidanceTextChange={setGuidanceText}
+                onGuidanceTypeChange={(value) => setGuidanceType(value as GuidanceType)}
+                onSubmitGuidance={handleSubmitGuidance}
+                currentAttemptNumber={annotation.intervention_count + 1}
+                isSubmitting={submitGuidanceMutation.isPending}
+                className="guidance-form"
+              />
             </AnimatedPanel>
           </div>
         </div>
       </main>
       
       {showWalkthrough && (
-        <WalkthroughTooltip 
-          steps={walkthroughSteps} 
+        <WalkthroughTooltip
+          steps={walkthroughSteps}
           onComplete={handleWalkthroughComplete}
         />
       )}

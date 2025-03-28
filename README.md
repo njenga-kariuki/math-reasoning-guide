@@ -1,69 +1,112 @@
-# Welcome to your Lovable project
+# Math Reasoning Annotation Tool
 
-## Project info
+## Project Overview
 
-**URL**: https://lovable.dev/projects/44f7ba7a-da7d-4545-aa4f-83ae4cb94630
+This is a test implementation of a hypothetical math annotation workflow designed to improve AI mathematical reasoning capabilities. The tool demonstrates how human feedback could be used to enhance LLM performance on complex math problems through a structured annotation process.
 
-## How can I edit this code?
+This prototype is not intended for production use but rather serves as a proof-of-concept for how human annotators might interact with AI-generated solutions to identify errors, provide guidance, and track improvement through iterations.
 
-There are several ways of editing your application.
+## Functionality
 
-**Use Lovable**
+This prototype demonstrates the following workflow:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/44f7ba7a-da7d-4545-aa4f-83ae4cb94630) and start prompting.
+- **Problem Library**: A collection of sample math problems across various categories (Algebra, Calculus, Geometry, Probability) with different difficulty levels
+- **AI Solution Generation**: Integration with Claude AI to generate step-by-step solutions to math problems
+- **Error Identification**: Interface for annotators to identify and classify specific errors in the AI's reasoning
+- **Guided Feedback**: Structured protocol for providing increasingly detailed guidance across multiple iterations
+- **Solution Revision**: Demonstration of how AI can revise solutions based on human feedback
+- **Annotation Tracking**: Recording the full annotation history including all interventions and outcomes
 
-Changes made via Lovable will be committed automatically to this repo.
+## Setup Guide
 
-**Use your preferred IDE**
+### Prerequisites
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Node.js & npm installed
+- A Supabase account (free tier)
+- Anthropic API key for Claude integration
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Quick Start
 
-Follow these steps:
+1. **Clone and Install**
+   ```sh
+   git clone https://github.com/your-username/math-annotation-tool.git
+   cd math-annotation-tool
+   npm install
+   cd server && npm install
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+2. **Environment Setup**
+   Create `.env` files:
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+   Root directory `.env`:
+   ```
+   VITE_API_URL=http://localhost:3001/api
+   ```
 
-# Step 3: Install the necessary dependencies.
-npm i
+   Server directory `.env`:
+   ```
+   PORT=3001
+   SUPABASE_URL=your_supabase_url_here
+   SUPABASE_KEY=your_supabase_anon_key_here
+   ANTHROPIC_API_KEY=your_anthropic_api_key_here
+   ```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+3. **Supabase Configuration**
+   - Create a new Supabase project
+   - Disable Row Level Security (RLS) for both the `problems` and `annotations` tables
+   - Run the setup script to create tables:
+     ```sh
+     cd server
+     npx ts-node src/scripts/setupSupabase.ts
+     ```
+   - Seed the database with sample problems:
+     ```sh
+     npx ts-node src/scripts/seedSupabase.ts
+     ```
 
-**Edit a file directly in GitHub**
+4. **Launch the Application**
+   ```sh
+   # Terminal 1: Start the backend
+   cd server && npm run dev
+   
+   # Terminal 2: Start the frontend
+   cd .. && npm run dev
+   ```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+   Access the application at http://localhost:8080
 
-**Use GitHub Codespaces**
+## Annotation Workflow
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1. **Guide Page**: Start by reviewing the annotation guidelines and process
+2. **Problem Selection**: The system automatically selects an unannotated math problem
+3. **Initial Review**: Examine the AI-generated solution and identify the first error in reasoning
+4. **Error Classification**: Select the type of error (e.g., calculation error, conceptual misunderstanding)
+5. **Guidance Provision**: Provide appropriate guidance without revealing the complete solution
+6. **Solution Revision**: Review the AI's revised solution based on your guidance
+7. **Iteration**: If errors persist, provide additional guidance with increasing specificity
+8. **Completion**: Mark the solution as correct once all errors have been addressed
 
-## What technologies are used for this project?
+## Technical Implementation
 
-This project is built with .
+### Frontend
+- React with TypeScript for component-based UI
+- Vite for fast development and building
+- TailwindCSS and shadcn/ui for responsive design
+- React Query for efficient data fetching and state management
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Backend
+- Express.js with TypeScript for API endpoints
+- Supabase for database storage and management
+- Anthropic's Claude API for generating and revising solutions
 
-## How can I deploy this project?
+### Data Flow
+1. Problems are stored in Supabase database
+2. When a problem is selected, Claude generates an initial solution
+3. Annotator feedback is recorded and sent to Claude for solution revision
+4. Complete annotation history is stored for future analysis
 
-Simply open [Lovable](https://lovable.dev/projects/44f7ba7a-da7d-4545-aa4f-83ae4cb94630) and click on Share -> Publish.
+## Deployment
 
-## I want to use a custom domain - is that possible?
+This prototype can be deployed using any standard web hosting service that supports Node.js applications. For demonstration purposes, services like Vercel, Netlify, or Render would be suitable options.
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+For a production implementation, additional security measures and proper authentication would need to be implemented.
