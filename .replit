@@ -5,4 +5,5 @@ run = "npm run dev"
 channel = "stable-24_05"
 
 [deployment]
-run = ["sh", "-c", "npm run dev"]
+run = ["sh", "-c", "node server/dist/index.js"]
+build = ["sh", "-c", "npm run build && cd server && npm run build"]
