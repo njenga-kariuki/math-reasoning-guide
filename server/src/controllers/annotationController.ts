@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 console.log('express-validator package:', require('express-validator'));
 console.log('express-validator version:', require('express-validator/package.json').version);
-import { body, validationResult } from 'express-validator';
+import { checkSchema as body, validationResult } from 'express-validator';
 import { annotationService, problemService } from '../services/supabaseService';
 import claudeService from '../services/claude';
 
