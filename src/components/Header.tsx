@@ -26,11 +26,11 @@ const Header = ({ transparent = false, className }: HeaderProps) => {
         </Link>
         
         <nav className="hidden md:flex items-center space-x-8">
-          <Link to="/annotation" className="text-sm font-medium hover:text-primary transition-colors">
-            Annotation Tool
-          </Link>
           <Link to="/guide" className="text-sm font-medium hover:text-primary transition-colors">
             Workflow Guide
+          </Link>
+          <Link to="/annotation" className="text-sm font-medium hover:text-primary transition-colors">
+            Annotation Tool
           </Link>
         </nav>
       </div>

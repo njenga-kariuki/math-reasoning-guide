@@ -30,7 +30,7 @@ const ErrorSelection = ({
 }: ErrorSelectionProps) => {
   return (
     <Card className={cn('overflow-hidden shadow-md', className)}>
-      <CardHeader className="bg-secondary/50 p-4">
+      <CardHeader className="bg-primary/10 p-4">
         <CardTitle className="text-xl">Error Classification</CardTitle>
       </CardHeader>
       <CardContent className="p-4">
@@ -42,12 +42,15 @@ const ErrorSelection = ({
           <RadioGroup 
             value={selectedErrorType || undefined} 
             onValueChange={onErrorTypeChange}
-            className="space-y-2"
+            className="space-y-2.5"
           >
             {ERROR_TYPES.map((type) => (
               <div 
                 key={type.value} 
-                className="flex items-center space-x-2 p-2 rounded-md hover:bg-secondary/50 transition-colors"
+                className={cn(
+                  "flex items-center space-x-2 p-2.5 rounded-md hover:bg-secondary/50 transition-colors",
+                  selectedErrorType === type.value && "bg-secondary/70"
+                )}
               >
                 <RadioGroupItem value={type.value} id={type.value} />
                 <Label 
