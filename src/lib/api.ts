@@ -5,7 +5,7 @@
 // Configure API URL based on environment
 const API_URL = import.meta.env.PROD 
   ? '/api'  // Production: Use relative path
-  : 'http://0.0.0.0:3001/api'; // Development: Connect to dev server
+  : '/api'; // Development: Use relative path for Vite proxy
 
 console.log('Using API_URL:', API_URL);
 

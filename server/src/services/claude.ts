@@ -5,7 +5,7 @@ dotenv.config();
 
 // Initialize Anthropic client
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || 'dummy-key',
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 // Define guidance level types
