@@ -13,6 +13,8 @@ import * as api from '@/lib/api';
 import { Problem, ProblemCategory, DifficultyLevel } from '@/types';
 import AnimatedPanel from '@/components/AnimatedPanel';
 
+console.log("ProblemLibrary component rendering...");
+
 const ProblemLibrary = () => {
   const queryClient = useQueryClient();
   const [showAddForm, setShowAddForm] = useState(false);

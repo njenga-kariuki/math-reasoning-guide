@@ -2,7 +2,12 @@
  * API client for the math annotation tool
  */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// Use a relative path for the API URL.
+// In development, Vite's proxy handles this.
+// In production, the server/deployment should be configured to route /api to the backend.
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+
+console.log('Using API_URL:', API_URL);
 
 // Problem API
 export const fetchProblems = async (filters = {}) => {

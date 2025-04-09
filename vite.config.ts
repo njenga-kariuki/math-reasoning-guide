@@ -8,6 +8,14 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      // Proxy /api requests to the backend server during development
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false, // Assuming backend is running on http
+      }
+    }
   },
   build: {
     outDir: 'dist',
