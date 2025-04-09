@@ -44,6 +44,7 @@ const SYSTEM_PROMPT_REVISION = `You are being asked to revise your solution to a
  * @returns Array of solution steps
  */
 export const getInitialSolution = async (problemText: string): Promise<string[]> => {
+  console.log(`[Claude Service] Requesting initial solution for problem: "${problemText}"`);
   try {
     const response = await anthropic.messages.create({
       model: 'claude-3-5-haiku-20241022',
@@ -57,12 +58,20 @@ export const getInitialSolution = async (problemText: string): Promise<string[]>
       ]
     });
 
+    // Log the raw response
+    console.log("[Claude Service] Raw response received:", JSON.stringify(response, null, 2));
+
     // Parse the response to extract steps
-    const content = response.content[0].type === 'text' ? response.content[0].text : '';
+    const content = response.content[0]?.type === 'text' ? response.content[0].text : '';
+    console.log(`[Claude Service] Extracted content for parsing: "${content.substring(0, 200)}..."`);
+    
     const steps = parseSteps(content);
+    console.log(`[Claude Service] Parsed steps result:`, steps);
+    
     return steps;
   } catch (error) {
-    console.error('Error getting initial solution from Claude:', error);
+    console.error('[Claude Service] Error getting initial solution from Claude:', error);
+    // Re-throw the error to be caught by the controller
     throw error;
   }
 };
@@ -204,6 +213,7 @@ const parseSteps = (content: string): string[] => {
   const stepPatterns = [
     /^Step\s+(\d+):\s*(.*)/i,  // Matches "Step 1: content"
     /^(\d+)\.\s*(.*)/,         // Matches "1. content"
+    /^(\d+)\)\s*(.*)/          // Matches "1) content"
   ];
 
   // Process each line
