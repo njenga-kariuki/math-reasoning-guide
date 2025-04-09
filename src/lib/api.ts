@@ -2,10 +2,10 @@
  * API client for the math annotation tool
  */
 
-// Use a relative path for the API URL.
-// In development, Vite's proxy handles this.
-// In production, the server/deployment should be configured to route /api to the backend.
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+// Configure API URL based on environment
+const API_URL = import.meta.env.PROD 
+  ? '/api'  // Production: Use relative path
+  : import.meta.env.VITE_API_URL || 'http://0.0.0.0:3001/api'; // Development: Connect to dev server
 
 console.log('Using API_URL:', API_URL);
 
