@@ -148,7 +148,7 @@ if (buildPath) {
 
 // Start server
 app.listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT} (http://0.0.0.0:${PORT})`);
 });
 
 export default app;
